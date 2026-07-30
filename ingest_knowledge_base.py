@@ -43,13 +43,31 @@ Two-way reconciliation with OpenRAG (not just the local manifest):
     in --dry-run mode, which makes no HTTP calls at all (local conversion
     still runs in --dry-run, so you can preview the Markdown output).
 
+Requirements: `pip install -r requirements.txt` (docling, requests).
+
+Credentials: an OpenRAG API key + username are required for real runs
+(--dry-run needs none). Provide them via, in priority order:
+  1. --api-key / --username flags
+  2. OPENRAG_API_KEY / OPENRAG_USERNAME environment variables
+  3. a .bob/mcp.json file (IBM Bob's MCP config), for people who have it
+Anyone testing against their own OpenRAG instance should use 1 or 2 --
+no IBM-internal tooling required.
+
+Sharing this script: only this file + requirements.txt need to be sent to
+someone else. Do NOT share the "Knowledge base/" folder, ".ingest_manifest
+.json", or "converted_markdown/" alongside it -- those hold your actual
+(often confidential) source documents and their converted text.
+
 Usage:
-    python ingest_knowledge_base.py [--dry-run] [options]
+    python ingest_knowledge_base.py --dry-run
+    python ingest_knowledge_base.py --base-url http://<their-openrag-host>:3005 \\
+        --api-key <key> --username <user>
 """
 
 import argparse
 import hashlib
 import json
+import os
 import pathlib
 import sys
 import time
@@ -123,22 +141,36 @@ def convert_to_markdown(path: pathlib.Path, converted_dir: pathlib.Path, kb_dir:
     return out_path
 
 
-def load_credentials(mcp_path: pathlib.Path) -> dict:
-    if not mcp_path.exists():
-        raise SystemExit(f"ERROR: mcp config not found at {mcp_path}")
-    data = json.loads(mcp_path.read_text())
-    try:
-        headers = data["mcpServers"]["openrag"]["headers"]
-        api_key = headers["X-API-Key"]
-        username = headers["X-USERNAME"]
-    except KeyError as e:
-        raise SystemExit(
-            f"ERROR: missing {e} at mcpServers.openrag.headers in {mcp_path}"
-        )
+def load_credentials(mcp_path: pathlib.Path, cli_api_key: str = None, cli_username: str = None) -> dict:
+    """Resolve OpenRAG API credentials, checked in this priority order:
+      1. --api-key / --username command-line flags
+      2. OPENRAG_API_KEY / OPENRAG_USERNAME environment variables
+      3. .bob/mcp.json (IBM Bob's MCP config for OpenRAG), if present
+
+    Only source 3 requires IBM Bob specifically -- anyone running their own
+    OpenRAG instance (e.g. to test this script) can use 1 or 2 instead, no
+    IBM-internal tooling required.
+    """
+    api_key = cli_api_key or os.environ.get("OPENRAG_API_KEY")
+    username = cli_username or os.environ.get("OPENRAG_USERNAME")
+
+    if (not api_key or not username) and mcp_path.exists():
+        data = json.loads(mcp_path.read_text())
+        try:
+            headers = data["mcpServers"]["openrag"]["headers"]
+            api_key = api_key or headers["X-API-Key"]
+            username = username or headers["X-USERNAME"]
+        except KeyError as e:
+            raise SystemExit(
+                f"ERROR: missing {e} at mcpServers.openrag.headers in {mcp_path}"
+            )
+
     if not api_key or not username:
         raise SystemExit(
-            f"ERROR: X-API-Key or X-USERNAME is empty in {mcp_path} "
-            "(mcpServers.openrag.headers)"
+            "ERROR: no OpenRAG credentials found. Provide them via one of:\n"
+            "  --api-key/--username command-line flags\n"
+            "  OPENRAG_API_KEY / OPENRAG_USERNAME environment variables\n"
+            f"  a .bob/mcp.json file at {mcp_path} (mcpServers.openrag.headers)"
         )
     return {"X-API-Key": api_key, "X-USERNAME": username}
 
@@ -304,8 +336,10 @@ def main():
     parser.add_argument("--knowledge-base", type=pathlib.Path, default=DEFAULT_KB_DIR)
     parser.add_argument("--manifest", type=pathlib.Path, default=DEFAULT_MANIFEST)
     parser.add_argument("--mcp-config", type=pathlib.Path, default=DEFAULT_MCP_CONFIG)
+    parser.add_argument("--api-key", default=None, help="OpenRAG API key (or set OPENRAG_API_KEY)")
+    parser.add_argument("--username", default=None, help="OpenRAG username (or set OPENRAG_USERNAME)")
     parser.add_argument("--converted-dir", type=pathlib.Path, default=DEFAULT_CONVERTED_DIR)
-    parser.add_argument("--base-url", default=DEFAULT_BASE_URL)
+    parser.add_argument("--base-url", default=DEFAULT_BASE_URL, help="OpenRAG base URL, e.g. http://localhost:3005")
     parser.add_argument("--max-size-mb", type=int, default=DEFAULT_MAX_SIZE_MB)
     parser.add_argument("--poll-timeout", type=int, default=DEFAULT_POLL_TIMEOUT)
     parser.add_argument("--poll-interval", type=int, default=DEFAULT_POLL_INTERVAL)
@@ -340,7 +374,7 @@ def main():
 
     session = None
     if not args.dry_run:
-        creds = load_credentials(args.mcp_config)
+        creds = load_credentials(args.mcp_config, args.api_key, args.username)
         session = requests.Session()
         session.headers.update(creds)
 
