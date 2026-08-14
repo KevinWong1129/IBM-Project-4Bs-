@@ -1,0 +1,1292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IBM Concert Platform — Overview</title>
+
+    <!-- IBM Plex Fonts (only permitted typeface for IBM presentations) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400&family=IBM+Plex+Sans:wght@300;400;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* ============================================
+           IBM BRAND CSS VARIABLES
+           Source of truth for all design decisions
+           ============================================ */
+        :root {
+            /* Typography */
+            --font-display: 'IBM Plex Sans', sans-serif;
+            --font-body:    'IBM Plex Sans', sans-serif;
+            --font-mono:    'IBM Plex Mono', monospace;
+
+            /* Font Weights */
+            --weight-bold:    700;
+            --weight-regular: 400;
+            --weight-light:   300;
+
+            /* Type Scale (1920×1080 stage) */
+            --size-hero:      96px;
+            --size-title:     48px;
+            --size-divider:   72px;
+            --size-lead:      28px;
+            --size-body:      24px;
+            --size-caption:   18px;
+            --size-footer:    12px;
+
+            /* IBM Colors */
+            --ibm-blue:       #1261FD;
+            --ibm-pink:       #FF7EB5;
+            --ibm-teal:       #3BDAD8;
+            --ibm-cool-gray:  #F1F4F7;
+            --ibm-purple:     #BE94FE;
+            --ibm-sky-blue:   #81CEFE;
+            --ibm-dark-gray:  #565656;
+            --ibm-mid-gray:   #C1C7CD;
+            --ibm-black:      #000000;
+            --ibm-white:      #FFFFFF;
+
+            /* Active Theme (White = default) */
+            --slide-bg:       #FFFFFF;
+            --slide-text:     #000000;
+            --slide-muted:    #565656;
+            --slide-accent:   #1261FD;
+            --slide-border:   #C1C7CD;
+            --stage-bg:       #1a1a1a;
+
+            /* Spacing */
+            --slide-pad-x:    44px;
+            --slide-pad-top:  42px;
+            --slide-footer-h: 54px;
+            --col-gap:        92px;
+
+            /* Animation */
+            --ease-ibm:       cubic-bezier(0.4, 0, 0.2, 1);
+            --dur-fast:       0.2s;
+            --dur-normal:     0.3s;
+        }
+
+        /* Blue theme override — cover & divider slides */
+        .slide.theme-blue {
+            --slide-bg:     #1261FD;
+            --slide-text:   #FFFFFF;
+            --slide-muted:  rgba(255,255,255,0.7);
+            --slide-accent: #FFFFFF;
+            --slide-border: rgba(255,255,255,0.3);
+            background: #1261FD;
+            color: #FFFFFF;
+        }
+
+        /* Cool Gray theme override */
+        .slide.theme-gray {
+            --slide-bg:    #F1F4F7;
+            --slide-text:  #000000;
+            background: #F1F4F7;
+        }
+
+        /* ============================================
+           VIEWPORT-BASE.CSS — MANDATORY FIXED STAGE
+           Every slide is authored at 1920×1080
+           ============================================ */
+        html, body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+            background: var(--stage-bg, #000);
+        }
+
+        .deck-viewport {
+            position: fixed;
+            inset: 0;
+            overflow: hidden;
+            background: var(--stage-bg, #000);
+        }
+
+        /* Fixed 16:9 design canvas. JS sets transform. */
+        .deck-stage {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 1920px;
+            height: 1080px;
+            overflow: hidden;
+            transform-origin: 0 0;
+            background: var(--slide-bg, #fff);
+        }
+
+        /* Slides stack inside the fixed stage */
+        .slide {
+            position: absolute;
+            inset: 0;
+            width: 1920px;
+            height: 1080px;
+            overflow: hidden;
+            display: block;
+            visibility: hidden;
+            opacity: 0;
+            pointer-events: none;
+            background: var(--slide-bg, #fff);
+            font-family: var(--font-body);
+            color: var(--slide-text);
+        }
+
+        .slide.active,
+        .slide.visible {
+            visibility: visible;
+            opacity: 1;
+            pointer-events: auto;
+            z-index: 1;
+        }
+
+        img, video, canvas, svg {
+            max-width: 100%;
+            max-height: 100%;
+        }
+
+        .deck-controls {
+            position: fixed;
+            left: 50%;
+            bottom: 22px;
+            transform: translateX(-50%);
+            z-index: 1000;
+        }
+
+        @media print {
+            html, body { width: 1920px; height: auto; overflow: visible; background: #fff; }
+            .deck-viewport { position: static; overflow: visible; background: #fff; }
+            .deck-stage { position: static; width: auto; height: auto; transform: none !important; background: none; }
+            .slide { position: relative; display: block !important; visibility: visible !important; opacity: 1 !important; pointer-events: auto !important; width: 1920px; height: 1080px; break-after: page; page-break-after: always; }
+            .slide:last-child { break-after: auto; page-break-after: auto; }
+            .deck-controls { display: none !important; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.2s !important;
+            }
+        }
+
+        /* ============================================
+           GLOBAL RESET
+           ============================================ */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        /* ============================================
+           IBM FOOTER BAR
+           Appears on every content slide
+           ============================================ */
+        .ibm-footer {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 54px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 44px;
+            border-top: 1px solid var(--slide-border);
+            font-family: var(--font-body);
+            font-size: 12px;
+            font-weight: 300;
+            color: var(--slide-muted);
+        }
+
+        /* ============================================
+           ANIMATION — REVEAL (fade-up)
+           Triggered by .visible class on the slide
+           ============================================ */
+        .reveal {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity var(--dur-normal) var(--ease-ibm),
+                        transform var(--dur-normal) var(--ease-ibm);
+        }
+
+        .slide.visible .reveal { opacity: 1; transform: translateY(0); }
+        .slide.visible .reveal:nth-child(1)  { transition-delay: 0.05s; }
+        .slide.visible .reveal:nth-child(2)  { transition-delay: 0.13s; }
+        .slide.visible .reveal:nth-child(3)  { transition-delay: 0.21s; }
+        .slide.visible .reveal:nth-child(4)  { transition-delay: 0.29s; }
+        .slide.visible .reveal:nth-child(5)  { transition-delay: 0.37s; }
+        .slide.visible .reveal:nth-child(6)  { transition-delay: 0.45s; }
+        .slide.visible .reveal:nth-child(7)  { transition-delay: 0.53s; }
+
+        /* ============================================
+           SLIDE 1 — COVER (Blue theme)
+           No images per IBM brand rules
+           ============================================ */
+        .slide-cover {
+            background: #1261FD;
+            display: flex;
+            flex-direction: column;
+            padding: var(--slide-pad-top) var(--slide-pad-x) var(--slide-footer-h);
+        }
+
+        .slide-cover .cover-eyebrow {
+            font-size: 18px;
+            font-weight: 300;
+            color: rgba(255,255,255,0.75);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 32px;
+            margin-top: auto;
+        }
+
+        .slide-cover .cover-title {
+            font-size: 96px;
+            font-weight: 700;
+            color: #FFFFFF;
+            line-height: 1.05;
+            max-width: 1100px;
+            margin-bottom: 40px;
+        }
+
+        .slide-cover .cover-subtitle {
+            font-size: 28px;
+            font-weight: 300;
+            color: rgba(255,255,255,0.85);
+            max-width: 780px;
+            line-height: 1.5;
+            margin-bottom: auto;
+        }
+
+        .slide-cover .cover-meta {
+            font-size: 14px;
+            font-weight: 300;
+            color: rgba(255,255,255,0.6);
+        }
+
+        /* IBM 8-bar logo (SVG, white on blue) */
+        .ibm-logo {
+            position: absolute;
+            top: 42px;
+            right: 44px;
+        }
+
+        /* ============================================
+           SLIDE 2 — AGENDA / DIVIDER
+           Blue theme for section break
+           ============================================ */
+        .slide-divider {
+            background: #1261FD;
+            display: flex;
+            flex-direction: column;
+            padding: var(--slide-pad-top) var(--slide-pad-x) var(--slide-footer-h);
+            justify-content: center;
+        }
+
+        .slide-divider .divider-label {
+            font-size: 14px;
+            font-weight: 400;
+            color: rgba(255,255,255,0.65);
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            margin-bottom: 28px;
+        }
+
+        .slide-divider .divider-title {
+            font-size: 72px;
+            font-weight: 700;
+            color: #FFFFFF;
+            line-height: 1.1;
+            max-width: 900px;
+        }
+
+        .slide-divider .divider-rule {
+            width: 80px;
+            height: 3px;
+            background: rgba(255,255,255,0.5);
+            margin-top: 40px;
+        }
+
+        /* ============================================
+           SHARED CONTENT SLIDE LAYOUT
+           Title zone + content zone + footer
+           ============================================ */
+        .slide-content-area {
+            position: absolute;
+            top: var(--slide-pad-top);
+            left: var(--slide-pad-x);
+            right: var(--slide-pad-x);
+            bottom: var(--slide-footer-h);
+        }
+
+        .slide-heading {
+            font-size: 14px;
+            font-weight: 400;
+            color: var(--ibm-blue);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            margin-bottom: 16px;
+        }
+
+        .slide-title {
+            font-size: 48px;
+            font-weight: 700;
+            color: var(--slide-text);
+            line-height: 1.1;
+            margin-bottom: 48px;
+        }
+
+        .slide-title-rule {
+            width: 64px;
+            height: 2px;
+            background: var(--ibm-blue);
+            margin-bottom: 48px;
+        }
+
+        /* ============================================
+           SLIDE 3 — WHAT IS IBM CONCERT
+           Two-column layout
+           ============================================ */
+        .two-col {
+            display: grid;
+            grid-template-columns: 870px 866px;
+            gap: 0 var(--col-gap);
+            margin-top: 0;
+        }
+
+        .col-body {
+            font-size: 24px;
+            font-weight: 400;
+            line-height: 1.55;
+            color: var(--slide-text);
+        }
+
+        .col-body p { margin-bottom: 24px; }
+
+        .highlight-quote {
+            background: var(--ibm-cool-gray);
+            border-left: 4px solid var(--ibm-blue);
+            padding: 32px 36px;
+            font-size: 26px;
+            font-weight: 300;
+            line-height: 1.45;
+            color: var(--slide-text);
+            margin-bottom: 28px;
+        }
+
+        .tag-row {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-top: 4px;
+        }
+
+        .tag {
+            background: var(--ibm-blue);
+            color: #FFFFFF;
+            font-size: 15px;
+            font-weight: 400;
+            padding: 8px 20px;
+            border-radius: 2px;
+        }
+
+        .tag.teal  { background: #0d7b7b; }
+        .tag.pink  { background: #b84d7b; }
+        .tag.purple{ background: #7c44c7; }
+
+        /* ============================================
+           SLIDE 4 — KEY CAPABILITIES
+           Four-column card grid
+           ============================================ */
+        .four-col {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 28px;
+            margin-top: 0;
+        }
+
+        .capability-card {
+            background: var(--ibm-cool-gray);
+            padding: 36px 32px;
+            border-top: 3px solid var(--ibm-blue);
+        }
+
+        .capability-card.c2 { border-top-color: #0d7b7b; }
+        .capability-card.c3 { border-top-color: #7c44c7; }
+        .capability-card.c4 { border-top-color: #b84d7b; }
+
+        .capability-icon {
+            font-size: 36px;
+            margin-bottom: 24px;
+            font-family: var(--font-mono);
+            font-weight: 300;
+            color: var(--ibm-blue);
+        }
+
+        .capability-card.c2 .capability-icon { color: #0d7b7b; }
+        .capability-card.c3 .capability-icon { color: #7c44c7; }
+        .capability-card.c4 .capability-icon { color: #b84d7b; }
+
+        .capability-card h3 {
+            font-size: 22px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            line-height: 1.2;
+        }
+
+        .capability-card p {
+            font-size: 19px;
+            font-weight: 300;
+            line-height: 1.55;
+            color: var(--slide-muted);
+        }
+
+        /* ============================================
+           SLIDE 5 — PRODUCT UNIFICATION
+           Boxes layout: unified products
+           ============================================ */
+        .product-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 32px;
+            margin-bottom: 52px;
+        }
+
+        .product-box {
+            background: #FFFFFF;
+            border: 1px solid var(--ibm-mid-gray);
+            padding: 36px 32px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .product-box .product-name {
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .product-box .product-desc {
+            font-size: 18px;
+            font-weight: 300;
+            color: var(--slide-muted);
+            line-height: 1.5;
+        }
+
+        .product-box .product-badge {
+            display: inline-block;
+            font-size: 13px;
+            font-weight: 400;
+            padding: 4px 12px;
+            border-radius: 2px;
+            width: fit-content;
+            margin-top: auto;
+        }
+
+        .arrow-center {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            color: var(--ibm-mid-gray);
+        }
+
+        .platform-box {
+            background: var(--ibm-blue);
+            color: #FFFFFF;
+            padding: 36px 48px;
+            display: flex;
+            align-items: center;
+            gap: 48px;
+            margin-top: 8px;
+        }
+
+        .platform-box .platform-name {
+            font-size: 40px;
+            font-weight: 700;
+            line-height: 1.1;
+        }
+
+        .platform-box .platform-desc {
+            font-size: 22px;
+            font-weight: 300;
+            line-height: 1.5;
+            color: rgba(255,255,255,0.85);
+            flex: 1;
+        }
+
+        /* ============================================
+           SLIDE 6 — AGENTIC AI / STATS
+           Fact/stat layout
+           ============================================ */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2px;
+            margin-bottom: 52px;
+        }
+
+        .stat-block {
+            background: var(--ibm-cool-gray);
+            padding: 52px 40px;
+            border-top: 3px solid var(--ibm-blue);
+        }
+
+        .stat-number {
+            font-size: 80px;
+            font-weight: 700;
+            color: var(--ibm-blue);
+            line-height: 1;
+            margin-bottom: 12px;
+        }
+
+        .stat-label {
+            font-size: 22px;
+            font-weight: 400;
+            color: var(--slide-text);
+            line-height: 1.4;
+        }
+
+        .stat-sub {
+            font-size: 17px;
+            font-weight: 300;
+            color: var(--slide-muted);
+            margin-top: 8px;
+            line-height: 1.5;
+        }
+
+        .ai-models-row {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .ai-models-label {
+            font-size: 18px;
+            font-weight: 400;
+            color: var(--slide-muted);
+            margin-right: 8px;
+        }
+
+        .ai-badge {
+            background: #000000;
+            color: #FFFFFF;
+            font-family: var(--font-mono);
+            font-size: 16px;
+            font-weight: 300;
+            padding: 10px 20px;
+            border-radius: 2px;
+        }
+
+        /* ============================================
+           SLIDE 7 — AVAILABILITY & GO-TO-MARKET
+           Two-column info layout
+           ============================================ */
+        .info-two-col {
+            display: grid;
+            grid-template-columns: 870px 866px;
+            gap: 0 var(--col-gap);
+        }
+
+        .info-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .info-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 20px;
+            padding: 20px 0;
+            border-bottom: 1px solid var(--ibm-mid-gray);
+            font-size: 22px;
+            font-weight: 300;
+            line-height: 1.5;
+            color: var(--slide-text);
+        }
+
+        .info-list li:first-child {
+            border-top: 1px solid var(--ibm-mid-gray);
+        }
+
+        .info-list li .list-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--ibm-blue);
+            border-radius: 50%;
+            margin-top: 9px;
+            flex-shrink: 0;
+        }
+
+        .info-box {
+            background: var(--ibm-blue);
+            color: #FFFFFF;
+            padding: 40px 44px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .info-box .box-title {
+            font-size: 22px;
+            font-weight: 700;
+            color: rgba(255,255,255,0.7);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 8px;
+        }
+
+        .info-box .box-date {
+            font-size: 56px;
+            font-weight: 700;
+            line-height: 1.1;
+        }
+
+        .info-box .box-sub {
+            font-size: 20px;
+            font-weight: 300;
+            color: rgba(255,255,255,0.8);
+            line-height: 1.5;
+            margin-top: 4px;
+        }
+
+        .info-box .box-rule {
+            width: 48px;
+            height: 2px;
+            background: rgba(255,255,255,0.4);
+            margin: 8px 0;
+        }
+
+        .info-box .channel-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .info-box .channel-list li {
+            font-size: 18px;
+            font-weight: 300;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.15);
+            color: rgba(255,255,255,0.9);
+        }
+
+        /* ============================================
+           SLIDE 8 — CLOSING / THANK YOU
+           Blue theme
+           ============================================ */
+        .slide-closing {
+            background: #1261FD;
+            padding: var(--slide-pad-top) var(--slide-pad-x) var(--slide-footer-h);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .closing-label {
+            font-size: 14px;
+            font-weight: 400;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.6);
+            margin-bottom: 28px;
+        }
+
+        .closing-title {
+            font-size: 72px;
+            font-weight: 700;
+            color: #FFFFFF;
+            line-height: 1.1;
+            margin-bottom: 40px;
+            max-width: 900px;
+        }
+
+        .closing-link {
+            font-size: 22px;
+            font-weight: 300;
+            color: rgba(255,255,255,0.8);
+        }
+
+        /* Footer on blue slides */
+        .slide.theme-blue .ibm-footer,
+        .slide-cover .ibm-footer,
+        .slide-closing .ibm-footer {
+            border-top-color: rgba(255,255,255,0.2);
+            color: rgba(255,255,255,0.5);
+        }
+
+        /* ============================================
+           PROGRESS DOTS (outside the slide stage)
+           ============================================ */
+        #progress-dots {
+            position: fixed;
+            right: 28px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 1000;
+        }
+
+        .progress-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.35);
+            cursor: pointer;
+            transition: background 0.2s, transform 0.2s;
+        }
+
+        .progress-dot.active {
+            background: #FFFFFF;
+            transform: scale(1.4);
+        }
+
+        /* Slide counter */
+        #slide-counter {
+            position: fixed;
+            right: 44px;
+            bottom: 28px;
+            font-family: 'IBM Plex Sans', sans-serif;
+            font-size: 13px;
+            font-weight: 300;
+            color: rgba(255,255,255,0.5);
+            z-index: 1000;
+            letter-spacing: 0.05em;
+        }
+
+        /* ============================================
+           INLINE EDIT CONTROLS
+           Hover top-left corner or press E
+           ============================================ */
+        .edit-hotzone {
+            position: fixed; top: 0; left: 0;
+            width: 80px; height: 80px;
+            z-index: 10000;
+            cursor: pointer;
+        }
+
+        .edit-toggle {
+            position: fixed; top: 18px; left: 18px;
+            background: rgba(0,0,0,0.7);
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 14px;
+            font-size: 14px;
+            font-family: 'IBM Plex Sans', sans-serif;
+            cursor: pointer;
+            z-index: 10001;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .edit-toggle.show,
+        .edit-toggle.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        [contenteditable="true"] {
+            outline: 2px dashed rgba(18, 97, 253, 0.5);
+            outline-offset: 2px;
+        }
+
+    </style>
+</head>
+<body>
+
+<!-- Edit controls (outside stage) -->
+<div class="edit-hotzone" id="editHotzone"></div>
+<button class="edit-toggle" id="editToggle">✏ Edit</button>
+
+<!-- Progress dots -->
+<div id="progress-dots"></div>
+<div id="slide-counter">1 / 8</div>
+
+<div class="deck-viewport">
+    <main class="deck-stage" id="deckStage">
+
+        <!-- =====================================================
+             SLIDE 1 — COVER
+             Blue theme, no images (IBM brand rule)
+             ===================================================== -->
+        <section class="slide theme-blue slide-cover active" data-slide="0">
+
+            <!-- IBM 8-bar logo (SVG, white) -->
+            <div class="ibm-logo">
+                <svg width="80" height="32" viewBox="0 0 80 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="IBM">
+                    <rect x="0" y="0" width="8" height="4" fill="white"/>
+                    <rect x="0" y="6" width="8" height="4" fill="white"/>
+                    <rect x="0" y="12" width="8" height="4" fill="white"/>
+                    <rect x="0" y="18" width="8" height="4" fill="white"/>
+                    <rect x="0" y="24" width="8" height="4" fill="white"/>
+                    <rect x="0" y="28" width="8" height="4" fill="white"/>
+                    <rect x="12" y="0" width="26" height="4" fill="white"/>
+                    <rect x="12" y="6" width="26" height="4" fill="white"/>
+                    <rect x="12" y="12" width="12" height="4" fill="white"/>
+                    <rect x="12" y="18" width="12" height="4" fill="white"/>
+                    <rect x="12" y="24" width="26" height="4" fill="white"/>
+                    <rect x="12" y="28" width="26" height="4" fill="white"/>
+                    <rect x="42" y="0" width="26" height="4" fill="white"/>
+                    <rect x="42" y="6" width="26" height="4" fill="white"/>
+                    <rect x="42" y="12" width="12" height="4" fill="white"/>
+                    <rect x="42" y="18" width="12" height="4" fill="white"/>
+                    <rect x="42" y="24" width="26" height="4" fill="white"/>
+                    <rect x="42" y="28" width="26" height="4" fill="white"/>
+                    <rect x="72" y="0" width="8" height="4" fill="white"/>
+                    <rect x="72" y="6" width="8" height="4" fill="white"/>
+                    <rect x="72" y="12" width="8" height="4" fill="white"/>
+                    <rect x="72" y="18" width="8" height="4" fill="white"/>
+                    <rect x="72" y="24" width="8" height="4" fill="white"/>
+                    <rect x="72" y="28" width="8" height="4" fill="white"/>
+                </svg>
+            </div>
+
+            <p class="cover-eyebrow reveal">IBM Concert platform</p>
+            <h1 class="cover-title reveal">Unified IT<br>Operations,<br>Powered by AI.</h1>
+            <p class="cover-subtitle reveal">A single coordination layer across applications, infrastructure, networks, and operations — connecting signals, context, and teams.</p>
+            <p class="cover-meta reveal">Platform Overview · June 2026</p>
+
+            <div class="ibm-footer">
+                <span>IBM Concert Platform / Overview / June 2026 / © 2026 IBM Corporation</span>
+                <span>01</span>
+            </div>
+        </section>
+
+        <!-- =====================================================
+             SLIDE 2 — AGENDA DIVIDER
+             Blue theme section break
+             ===================================================== -->
+        <section class="slide theme-blue" data-slide="1">
+            <div class="slide-divider">
+                <p class="divider-label reveal">Agenda</p>
+                <h2 class="divider-title reveal">What we'll cover today</h2>
+                <div class="divider-rule reveal"></div>
+
+                <div style="margin-top:48px; display:grid; grid-template-columns:1fr 1fr; gap:16px 80px; max-width:1100px;">
+                    <p class="reveal" style="font-size:22px;font-weight:300;color:rgba(255,255,255,0.85);padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.2);">01 — What is IBM Concert?</p>
+                    <p class="reveal" style="font-size:22px;font-weight:300;color:rgba(255,255,255,0.85);padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.2);">04 — Products Unified</p>
+                    <p class="reveal" style="font-size:22px;font-weight:300;color:rgba(255,255,255,0.85);padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.2);">02 — The Problem it Solves</p>
+                    <p class="reveal" style="font-size:22px;font-weight:300;color:rgba(255,255,255,0.85);padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.2);">05 — Agentic AI Capabilities</p>
+                    <p class="reveal" style="font-size:22px;font-weight:300;color:rgba(255,255,255,0.85);padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.2);">03 — Key Capabilities</p>
+                    <p class="reveal" style="font-size:22px;font-weight:300;color:rgba(255,255,255,0.85);padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.2);">06 — Availability</p>
+                </div>
+            </div>
+
+            <div class="ibm-footer">
+                <span>IBM Concert Platform / Overview / June 2026 / © 2026 IBM Corporation</span>
+                <span>02</span>
+            </div>
+        </section>
+
+        <!-- =====================================================
+             SLIDE 3 — WHAT IS IBM CONCERT?
+             Title + two-column layout
+             ===================================================== -->
+        <section class="slide" data-slide="2">
+            <div class="slide-content-area">
+                <p class="slide-heading reveal">01 — Overview</p>
+                <h2 class="slide-title reveal">What is IBM Concert?</h2>
+
+                <div class="two-col">
+                    <div>
+                        <div class="highlight-quote reveal">
+                            "A unified IT operations platform that connects signals, context, and teams across an enterprise's existing technology stack."
+                        </div>
+                        <p class="col-body reveal" style="margin-bottom:32px;">IBM Concert acts as the <strong>single pane of glass</strong> and coordination layer across applications, infrastructure, networks, and operations workflows — helping organizations cut through alert noise, understand what matters most, and respond more effectively.</p>
+                        <div class="tag-row reveal">
+                            <span class="tag">Agentic AI</span>
+                            <span class="tag teal">Cross-domain</span>
+                            <span class="tag purple">No rip-and-replace</span>
+                        </div>
+                    </div>
+                    <div>
+                        <p class="col-body reveal">IBM Concert works <em>with</em>, not instead of, a customer's current tools. It ingests signals from across the environment, unifies them into shared context, and uses AI-powered agents to surface priorities, recommend actions, and support coordinated response across teams.</p>
+                        <br>
+                        <p class="col-body reveal" style="font-weight:300;color:var(--ibm-dark-gray);">The result is <strong style="color:#000">faster issue resolution</strong>, <strong style="color:#000">improved resilience</strong>, and <strong style="color:#000">simpler operations</strong> — without displacing your existing investments.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="ibm-footer">
+                <span>IBM Concert Platform / Overview / June 2026 / © 2026 IBM Corporation</span>
+                <span>03</span>
+            </div>
+        </section>
+
+        <!-- =====================================================
+             SLIDE 4 — KEY CAPABILITIES
+             Four-column card grid
+             ===================================================== -->
+        <section class="slide theme-gray" data-slide="3">
+            <div class="slide-content-area">
+                <p class="slide-heading reveal">03 — Capabilities</p>
+                <h2 class="slide-title reveal">What Concert does for your operations</h2>
+
+                <div class="four-col">
+                    <div class="capability-card reveal">
+                        <div class="capability-icon">⬡</div>
+                        <h3>Signal Unification</h3>
+                        <p>Ingests observability, performance, and networking signals from across your entire environment into a single shared context layer.</p>
+                    </div>
+                    <div class="capability-card c2 reveal">
+                        <div class="capability-icon">◈</div>
+                        <h3>Agentic AI Prioritization</h3>
+                        <p>AI-powered agents surface what matters most, prioritize by business impact, and recommend actions — reducing noise, accelerating resolution.</p>
+                    </div>
+                    <div class="capability-card c3 reveal">
+                        <div class="capability-icon">◎</div>
+                        <h3>Governed Workflows</h3>
+                        <p>Coordinates response through governed, auditable workflows. Action is orchestrated across teams without bypassing policy or compliance controls.</p>
+                    </div>
+                    <div class="capability-card c4 reveal">
+                        <div class="capability-icon">◇</div>
+                        <h3>Personalized Experience</h3>
+                        <p>Role-based homepage adapts to each user's responsibilities, preferred signals, and focus areas — no two operators see the same view.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="ibm-footer">
+                <span>IBM Concert Platform / Overview / June 2026 / © 2026 IBM Corporation</span>
+                <span>04</span>
+            </div>
+        </section>
+
+        <!-- =====================================================
+             SLIDE 5 — PRODUCTS UNIFIED
+             Convergence diagram layout
+             ===================================================== -->
+        <section class="slide" data-slide="4">
+            <div class="slide-content-area">
+                <p class="slide-heading reveal">04 — Platform</p>
+                <h2 class="slide-title reveal">Four products. One platform.</h2>
+
+                <div class="product-grid">
+                    <div class="product-box reveal">
+                        <span class="product-name" style="color:#1261FD;">Instana</span>
+                        <span class="product-desc">Application performance monitoring & observability — traces, metrics, events across services.</span>
+                        <span class="product-badge" style="background:#e8f0ff;color:#1261FD;">Observability</span>
+                    </div>
+                    <div class="product-box reveal">
+                        <span class="product-name" style="color:#0d7b7b;">Turbonomic</span>
+                        <span class="product-desc">Resource optimization — ensures application performance while controlling infrastructure costs.</span>
+                        <span class="product-badge" style="background:#e0f5f5;color:#0d7b7b;">Optimization</span>
+                    </div>
+                    <div class="product-box reveal">
+                        <span class="product-name" style="color:#7c44c7;">SevOne</span>
+                        <span class="product-desc">Network performance management — visibility across hybrid, cloud, and on-prem networks.</span>
+                        <span class="product-badge" style="background:#ede8fc;color:#7c44c7;">Networking</span>
+                    </div>
+                    <div class="product-box reveal">
+                        <span class="product-name" style="color:#b84d7b;">NS1</span>
+                        <span class="product-desc">DNS & traffic management — intelligent routing and application connectivity management.</span>
+                        <span class="product-badge" style="background:#fdeef4;color:#b84d7b;">DNS &amp; Traffic</span>
+                    </div>
+                </div>
+
+                <div class="platform-box reveal">
+                    <div>
+                        <div class="platform-name">IBM Concert platform</div>
+                    </div>
+                    <div class="platform-desc">Unified coordination layer — shared context, correlated data, and agentic AI across all four domains. No rip-and-replace: works with your existing deployments.</div>
+                </div>
+            </div>
+
+            <div class="ibm-footer">
+                <span>IBM Concert Platform / Overview / June 2026 / © 2026 IBM Corporation</span>
+                <span>05</span>
+            </div>
+        </section>
+
+        <!-- =====================================================
+             SLIDE 6 — AGENTIC AI & TECHNOLOGY
+             Fact/stat layout with AI model badges
+             ===================================================== -->
+        <section class="slide" data-slide="5">
+            <div class="slide-content-area">
+                <p class="slide-heading reveal">05 — AI Capabilities</p>
+                <h2 class="slide-title reveal">Powered by agentic AI</h2>
+
+                <div class="stats-row">
+                    <div class="stat-block reveal">
+                        <div class="stat-number">1</div>
+                        <div class="stat-label">Unified operational surface</div>
+                        <div class="stat-sub">Replaces fragmented dashboards across Instana, Turbonomic, SevOne & NS1 with a single, intent-based view</div>
+                    </div>
+                    <div class="stat-block reveal" style="border-top-color: #0d7b7b;">
+                        <div class="stat-number" style="color:#0d7b7b;">4+</div>
+                        <div class="stat-label">AI model families</div>
+                        <div class="stat-sub">Granite, Mistral, OpenAI, and Slate — selected per use case for accuracy and governance</div>
+                    </div>
+                    <div class="stat-block reveal" style="border-top-color:#7c44c7;">
+                        <div class="stat-number" style="color:#7c44c7;">GA</div>
+                        <div class="stat-label">June 15, 2026</div>
+                        <div class="stat-sub">Monthly release cadence from GA, supporting both SaaS and on-premises deployment</div>
+                    </div>
+                </div>
+
+                <div class="ai-models-row">
+                    <span class="ai-models-label reveal">AI Models in Concert:</span>
+                    <span class="ai-badge reveal">Granite</span>
+                    <span class="ai-badge reveal">Mistral</span>
+                    <span class="ai-badge reveal" style="background:#1261FD;">OpenAI</span>
+                    <span class="ai-badge reveal" style="background:#7c44c7;">Slate</span>
+                    <span style="font-size:17px;font-weight:300;color:var(--slide-muted);margin-left:12px;" class="reveal">— selected by use case</span>
+                </div>
+            </div>
+
+            <div class="ibm-footer">
+                <span>IBM Concert Platform / Overview / June 2026 / © 2026 IBM Corporation</span>
+                <span>06</span>
+            </div>
+        </section>
+
+        <!-- =====================================================
+             SLIDE 7 — AVAILABILITY & GO-TO-MARKET
+             Two-column with info box
+             ===================================================== -->
+        <section class="slide theme-gray" data-slide="6">
+            <div class="slide-content-area">
+                <p class="slide-heading reveal">06 — Availability</p>
+                <h2 class="slide-title reveal">How to get IBM Concert</h2>
+
+                <div class="info-two-col">
+                    <div>
+                        <ul class="info-list">
+                            <li class="reveal"><span class="list-dot"></span><span>Sold through <strong>IBM direct sales</strong> and authorized partners — Brand, Automation, and Networking sellers all enabled</span></li>
+                            <li class="reveal"><span class="list-dot"></span><span>Available as <strong>SaaS Committed Spend</strong>, SaaS Subscription, or On-Premises / client-hosted</span></li>
+                            <li class="reveal"><span class="list-dot"></span><span>Listed on <strong>AWS Marketplace</strong> and the IBM Cloud Catalog for easy procurement</span></li>
+                            <li class="reveal"><span class="list-dot"></span><span>Suitable for <strong>Z and Power</strong> environments — Instana on Z/OS capabilities carry forward</span></li>
+                            <li class="reveal"><span class="list-dot"></span><span><strong>Public Preview</strong> launched at IBM THINK 2026 — sandbox and demo environments available</span></li>
+                        </ul>
+                    </div>
+                    <div class="info-box reveal">
+                        <div class="box-title">General Availability</div>
+                        <div class="box-date">June 15,<br>2026</div>
+                        <div class="box-sub">IBM Concert platform officially available to all customers</div>
+                        <div class="box-rule"></div>
+                        <div class="box-title">Deployment Options</div>
+                        <ul class="channel-list">
+                            <li>SaaS (committed spend)</li>
+                            <li>SaaS subscription</li>
+                            <li>On-premises / client-hosted</li>
+                            <li>AWS Marketplace</li>
+                            <li>IBM Cloud Catalog</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="ibm-footer">
+                <span>IBM Concert Platform / Overview / June 2026 / © 2026 IBM Corporation</span>
+                <span>07</span>
+            </div>
+        </section>
+
+        <!-- =====================================================
+             SLIDE 8 — CLOSING / THANK YOU
+             Blue theme sign-off
+             ===================================================== -->
+        <section class="slide theme-blue" data-slide="7">
+            <div class="slide-closing">
+                <p class="closing-label reveal">IBM Concert platform</p>
+                <h2 class="closing-title reveal">Your entire system,<br>operating as one.</h2>
+                <p class="closing-link reveal">ibm.com/concert · IBM THINK 2026 Public Preview</p>
+            </div>
+
+            <!-- IBM logo on closing slide -->
+            <div class="ibm-logo">
+                <svg width="80" height="32" viewBox="0 0 80 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="IBM">
+                    <rect x="0" y="0" width="8" height="4" fill="white"/>
+                    <rect x="0" y="6" width="8" height="4" fill="white"/>
+                    <rect x="0" y="12" width="8" height="4" fill="white"/>
+                    <rect x="0" y="18" width="8" height="4" fill="white"/>
+                    <rect x="0" y="24" width="8" height="4" fill="white"/>
+                    <rect x="0" y="28" width="8" height="4" fill="white"/>
+                    <rect x="12" y="0" width="26" height="4" fill="white"/>
+                    <rect x="12" y="6" width="26" height="4" fill="white"/>
+                    <rect x="12" y="12" width="12" height="4" fill="white"/>
+                    <rect x="12" y="18" width="12" height="4" fill="white"/>
+                    <rect x="12" y="24" width="26" height="4" fill="white"/>
+                    <rect x="12" y="28" width="26" height="4" fill="white"/>
+                    <rect x="42" y="0" width="26" height="4" fill="white"/>
+                    <rect x="42" y="6" width="26" height="4" fill="white"/>
+                    <rect x="42" y="12" width="12" height="4" fill="white"/>
+                    <rect x="42" y="18" width="12" height="4" fill="white"/>
+                    <rect x="42" y="24" width="26" height="4" fill="white"/>
+                    <rect x="42" y="28" width="26" height="4" fill="white"/>
+                    <rect x="72" y="0" width="8" height="4" fill="white"/>
+                    <rect x="72" y="6" width="8" height="4" fill="white"/>
+                    <rect x="72" y="12" width="8" height="4" fill="white"/>
+                    <rect x="72" y="18" width="8" height="4" fill="white"/>
+                    <rect x="72" y="24" width="8" height="4" fill="white"/>
+                    <rect x="72" y="28" width="8" height="4" fill="white"/>
+                </svg>
+            </div>
+
+            <div class="ibm-footer">
+                <span>IBM Concert Platform / Overview / June 2026 / © 2026 IBM Corporation</span>
+                <span>08</span>
+            </div>
+        </section>
+
+    </main>
+</div>
+
+<script>
+    /* ============================================
+       SLIDE PRESENTATION CONTROLLER
+       IBM Concert Platform Overview
+       ============================================ */
+    class IBMPresentation {
+        constructor() {
+            this.slides = document.querySelectorAll('.slide');
+            this.currentSlide = 0;
+            this.total = this.slides.length;
+            this.stage = document.getElementById('deckStage');
+            this.counter = document.getElementById('slide-counter');
+
+            this.setupStageScale();
+            this.setupProgressDots();
+            this.setupKeyboardNav();
+            this.setupTouchNav();
+            this.setupWheelNav();
+            this.showSlide(0);
+            this.setupInlineEdit();
+        }
+
+        /* Scale the 1920×1080 stage to fit any viewport */
+        setupStageScale() {
+            const scale = () => {
+                const factor = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+                const x = (window.innerWidth  - 1920 * factor) / 2;
+                const y = (window.innerHeight - 1080 * factor) / 2;
+                this.stage.style.transform = `translate(${x}px, ${y}px) scale(${factor})`;
+            };
+            scale();
+            window.addEventListener('resize', scale);
+        }
+
+        /* Build progress dots */
+        setupProgressDots() {
+            const container = document.getElementById('progress-dots');
+            this.dots = [];
+            for (let i = 0; i < this.total; i++) {
+                const dot = document.createElement('button');
+                dot.className = 'progress-dot';
+                dot.setAttribute('aria-label', `Go to slide ${i + 1}`);
+                dot.addEventListener('click', () => this.showSlide(i));
+                container.appendChild(dot);
+                this.dots.push(dot);
+            }
+        }
+
+        /* Keyboard navigation */
+        setupKeyboardNav() {
+            document.addEventListener('keydown', (e) => {
+                if (e.target.getAttribute('contenteditable')) return;
+                if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ' || e.key === 'PageDown') {
+                    e.preventDefault(); this.next();
+                } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp' || e.key === 'PageUp') {
+                    e.preventDefault(); this.prev();
+                } else if (e.key === 'Home') {
+                    this.showSlide(0);
+                } else if (e.key === 'End') {
+                    this.showSlide(this.total - 1);
+                }
+            });
+        }
+
+        /* Touch / swipe navigation */
+        setupTouchNav() {
+            let startX = 0, startY = 0;
+            document.addEventListener('touchstart', (e) => {
+                startX = e.touches[0].clientX;
+                startY = e.touches[0].clientY;
+            }, { passive: true });
+            document.addEventListener('touchend', (e) => {
+                const dx = e.changedTouches[0].clientX - startX;
+                const dy = e.changedTouches[0].clientY - startY;
+                if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 40) {
+                    dx < 0 ? this.next() : this.prev();
+                }
+            }, { passive: true });
+        }
+
+        /* Mouse wheel navigation (debounced) */
+        setupWheelNav() {
+            let last = 0;
+            document.addEventListener('wheel', (e) => {
+                const now = Date.now();
+                if (now - last < 600) return;
+                last = now;
+                e.deltaY > 0 ? this.next() : this.prev();
+            }, { passive: true });
+        }
+
+        next() { this.showSlide(this.currentSlide + 1); }
+        prev() { this.showSlide(this.currentSlide - 1); }
+
+        showSlide(index) {
+            this.currentSlide = Math.max(0, Math.min(index, this.total - 1));
+            this.slides.forEach((slide, i) => {
+                const isActive = i === this.currentSlide;
+                slide.classList.toggle('active', isActive);
+                // Small delay on the new slide so transition looks intentional
+                if (isActive) {
+                    setTimeout(() => slide.classList.add('visible'), 30);
+                } else {
+                    slide.classList.remove('visible');
+                }
+            });
+            // Update dots and counter
+            this.dots.forEach((dot, i) => dot.classList.toggle('active', i === this.currentSlide));
+            this.counter.textContent = `${this.currentSlide + 1} / ${this.total}`;
+        }
+
+        /* Inline editing — hover top-left corner or press E */
+        setupInlineEdit() {
+            const hotzone   = document.getElementById('editHotzone');
+            const toggle    = document.getElementById('editToggle');
+            let   hideTimer = null;
+            let   isEditing = false;
+
+            const showBtn = () => { clearTimeout(hideTimer); toggle.classList.add('show'); };
+            const hideBtn = () => {
+                hideTimer = setTimeout(() => {
+                    if (!isEditing) toggle.classList.remove('show');
+                }, 400);
+            };
+
+            hotzone.addEventListener('mouseenter', showBtn);
+            hotzone.addEventListener('mouseleave', hideBtn);
+            hotzone.addEventListener('click',      () => toggleEdit());
+            toggle.addEventListener('mouseenter',  showBtn);
+            toggle.addEventListener('mouseleave',  hideBtn);
+            toggle.addEventListener('click',       () => toggleEdit());
+
+            document.addEventListener('keydown', (e) => {
+                if ((e.key === 'e' || e.key === 'E') && !e.target.getAttribute('contenteditable')) toggleEdit();
+            });
+
+            function toggleEdit() {
+                isEditing = !isEditing;
+                const editables = document.querySelectorAll('h1,h2,h3,p,li,span.product-name,span.product-desc,div.stat-number,div.stat-label,div.stat-sub,div.platform-name,div.platform-desc');
+                editables.forEach(el => {
+                    // Skip footer elements
+                    if (el.closest('.ibm-footer')) return;
+                    el.contentEditable = isEditing ? 'true' : 'false';
+                });
+                toggle.textContent = isEditing ? '✔ Done' : '✏ Edit';
+                toggle.classList.toggle('active', isEditing);
+                if (!isEditing) toggle.classList.remove('show');
+            }
+        }
+    }
+
+    // Boot presentation
+    new IBMPresentation();
+</script>
+</body>
+</html>

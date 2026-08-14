@@ -1,0 +1,1219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Installing IBM Concert — Root User (VM)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400&family=IBM+Plex+Sans:wght@300;400;700&display=swap" rel="stylesheet">
+<style>
+/* === VIEWPORT BASE (mandatory fixed-stage CSS) === */
+html, body {
+    width: 100%; height: 100%;
+    margin: 0; overflow: hidden;
+    background: var(--stage-bg, #000);
+}
+.deck-viewport {
+    position: fixed; inset: 0;
+    overflow: hidden;
+    background: var(--stage-bg, #000);
+}
+.deck-stage {
+    position: absolute; left: 0; top: 0;
+    width: 1920px; height: 1080px;
+    overflow: hidden;
+    transform-origin: 0 0;
+    background: var(--slide-bg, #fff);
+}
+.slide {
+    position: absolute; inset: 0;
+    width: 1920px; height: 1080px;
+    overflow: hidden; display: block;
+    visibility: hidden; opacity: 0;
+    pointer-events: none;
+    background: var(--slide-bg, #fff);
+}
+.slide.active, .slide.visible {
+    visibility: visible; opacity: 1;
+    pointer-events: auto; z-index: 1;
+}
+img, video, canvas, svg { max-width: 100%; max-height: 100%; }
+.deck-controls {
+    position: fixed; left: 50%; bottom: 22px;
+    transform: translateX(-50%); z-index: 1000;
+}
+@media print {
+    html, body { width: 1920px; height: auto; overflow: visible; background: #fff; }
+    .deck-viewport { position: static; overflow: visible; background: #fff; }
+    .deck-stage { position: static; width: auto; height: auto; transform: none !important; background: none; }
+    .slide { position: relative; display: block !important; visibility: visible !important; opacity: 1 !important; pointer-events: auto !important; width: 1920px; height: 1080px; break-after: page; page-break-after: always; }
+    .slide:last-child { break-after: auto; page-break-after: auto; }
+    .deck-controls { display: none !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.2s !important; }
+}
+
+/* === IBM BRAND VARIABLES === */
+:root {
+    --font-display: 'IBM Plex Sans', sans-serif;
+    --font-body:    'IBM Plex Sans', sans-serif;
+    --font-mono:    'IBM Plex Mono', monospace;
+    --weight-bold:    700;
+    --weight-regular: 400;
+    --weight-light:   300;
+    --size-hero:      96px;
+    --size-title:     48px;
+    --size-divider:   72px;
+    --size-lead:      28px;
+    --size-body:      24px;
+    --size-caption:   18px;
+    --size-footer:    12px;
+    --ibm-blue:       #1261FD;
+    --ibm-pink:       #FF7EB5;
+    --ibm-teal:       #3BDAD8;
+    --ibm-cool-gray:  #F1F4F7;
+    --ibm-purple:     #BE94FE;
+    --ibm-sky-blue:   #81CEFE;
+    --ibm-dark-gray:  #565656;
+    --ibm-mid-gray:   #C1C7CD;
+    --ibm-black:      #000000;
+    --ibm-white:      #FFFFFF;
+    --slide-bg:       #FFFFFF;
+    --slide-text:     #000000;
+    --slide-muted:    #565656;
+    --slide-accent:   #1261FD;
+    --slide-border:   #C1C7CD;
+    --stage-bg:       #1a1a1a;
+    --slide-pad-x:    44px;
+    --slide-pad-top:  42px;
+    --slide-footer-h: 54px;
+    --col-gap:        92px;
+    --ease-ibm:       cubic-bezier(0.4, 0, 0.2, 1);
+    --dur-fast:       0.2s;
+    --dur-normal:     0.3s;
+}
+.slide.theme-blue {
+    --slide-bg:     #1261FD;
+    --slide-text:   #FFFFFF;
+    --slide-muted:  rgba(255,255,255,0.7);
+    --slide-accent: #FFFFFF;
+    --slide-border: rgba(255,255,255,0.3);
+    background: #1261FD;
+    color: #FFFFFF;
+}
+.slide.theme-gray {
+    --slide-bg:    #F1F4F7;
+    --slide-text:  #000000;
+    background: #F1F4F7;
+}
+
+/* === GLOBAL SLIDE TYPOGRAPHY === */
+.slide { font-family: var(--font-body); color: var(--slide-text); }
+
+/* === FOOTER BAR === */
+.ibm-footer {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    height: 54px; display: flex; align-items: center;
+    justify-content: space-between; padding: 0 44px;
+    border-top: 1px solid var(--slide-border);
+    font-family: var(--font-body); font-size: 12px;
+    font-weight: 300; color: var(--slide-muted);
+}
+
+/* === SLIDE TRANSITIONS === */
+.slide { transition: opacity var(--dur-normal) var(--ease-ibm); }
+.slide.active .anim-fade-up {
+    animation: fadeUp 0.4s var(--ease-ibm) both;
+}
+.slide.active .anim-fade-up:nth-child(1) { animation-delay: 0.05s; }
+.slide.active .anim-fade-up:nth-child(2) { animation-delay: 0.13s; }
+.slide.active .anim-fade-up:nth-child(3) { animation-delay: 0.21s; }
+.slide.active .anim-fade-up:nth-child(4) { animation-delay: 0.29s; }
+.slide.active .anim-fade-up:nth-child(5) { animation-delay: 0.37s; }
+.slide.active .anim-fade-up:nth-child(6) { animation-delay: 0.45s; }
+@keyframes fadeUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* === COVER SLIDE === */
+.cover-inner {
+    position: absolute; top: 0; left: 0; right: 0;
+    bottom: 54px; padding: 80px 44px 40px 44px;
+    display: flex; flex-direction: column; justify-content: flex-end;
+}
+.cover-eyebrow {
+    font-size: 20px; font-weight: 400; letter-spacing: 0.08em;
+    text-transform: uppercase; color: rgba(255,255,255,0.75);
+    margin-bottom: 24px;
+}
+.cover-title {
+    font-size: 88px; font-weight: 700; line-height: 1.0;
+    color: #FFFFFF; margin: 0 0 20px 0; max-width: 1100px;
+}
+.cover-subtitle {
+    font-size: 26px; font-weight: 300; color: rgba(255,255,255,0.8);
+    max-width: 800px; line-height: 1.5;
+}
+.cover-logo {
+    position: absolute; top: 52px; right: 44px;
+}
+.ibm-logo-svg { width: 80px; height: auto; }
+.cover-rule {
+    width: 64px; height: 4px; background: #FFFFFF;
+    margin-bottom: 32px;
+}
+
+/* === DIVIDER SLIDE === */
+.divider-inner {
+    position: absolute; top: 0; left: 0; right: 0; bottom: 54px;
+    display: flex; flex-direction: column; justify-content: center;
+    padding: 0 44px;
+}
+.divider-label {
+    font-size: 18px; font-weight: 400; letter-spacing: 0.12em;
+    text-transform: uppercase; color: rgba(255,255,255,0.65);
+    margin-bottom: 28px;
+}
+.divider-title {
+    font-size: 72px; font-weight: 700; line-height: 1.1;
+    color: #FFFFFF; max-width: 1200px;
+}
+.divider-accent-bar {
+    width: 80px; height: 4px; background: #FFFFFF;
+    margin-bottom: 32px;
+}
+
+/* === STANDARD CONTENT SLIDE === */
+.slide-inner {
+    position: absolute; top: 0; left: 0; right: 0; bottom: 54px;
+    padding: var(--slide-pad-top) var(--slide-pad-x) 24px var(--slide-pad-x);
+}
+.slide-title {
+    font-size: var(--size-title); font-weight: 700;
+    line-height: 1.1; color: var(--slide-text);
+    margin: 0 0 8px 0;
+}
+.slide-title-rule {
+    width: 100%; height: 1px; background: var(--slide-border);
+    margin-bottom: 36px;
+}
+.slide-body { font-size: var(--size-body); font-weight: 400; line-height: 1.55; color: var(--slide-text); }
+
+/* === TWO-COLUMN LAYOUT === */
+.two-col {
+    display: flex; gap: 92px;
+    margin-top: 0;
+}
+.col-left  { flex: 0 0 868px; }
+.col-right { flex: 1; }
+
+/* === BULLET LIST === */
+.bullet-list { list-style: none; margin: 0; padding: 0; }
+.bullet-list li {
+    font-size: 24px; font-weight: 400; line-height: 1.5;
+    color: var(--slide-text); padding: 10px 0 10px 28px;
+    position: relative; border-bottom: 1px solid var(--slide-border);
+}
+.bullet-list li:last-child { border-bottom: none; }
+.bullet-list li::before {
+    content: ''; position: absolute; left: 0; top: 50%;
+    transform: translateY(-50%);
+    width: 8px; height: 8px;
+    background: var(--ibm-blue); border-radius: 50%;
+}
+
+/* === CODE BLOCK === */
+.code-block {
+    background: #F1F4F7; border-left: 4px solid var(--ibm-blue);
+    padding: 20px 24px; font-family: var(--font-mono);
+    font-size: 20px; font-weight: 300; line-height: 1.6;
+    color: #1a1a1a; margin: 16px 0; white-space: pre;
+}
+.code-comment { color: #565656; }
+.code-highlight { color: #1261FD; font-weight: 400; }
+
+/* === INFO CARDS === */
+.card-grid {
+    display: grid; gap: 28px;
+}
+.card-grid-3 { grid-template-columns: repeat(3, 1fr); }
+.card-grid-2 { grid-template-columns: repeat(2, 1fr); }
+.info-card {
+    background: var(--ibm-cool-gray);
+    padding: 28px 28px 24px 28px;
+    border-top: 4px solid var(--ibm-blue);
+}
+.info-card.accent-teal   { border-top-color: var(--ibm-teal); }
+.info-card.accent-pink   { border-top-color: var(--ibm-pink); }
+.info-card.accent-purple { border-top-color: var(--ibm-purple); }
+.card-number {
+    font-size: 48px; font-weight: 700; color: var(--ibm-blue);
+    line-height: 1; margin-bottom: 10px;
+}
+.card-title {
+    font-size: 20px; font-weight: 700; margin-bottom: 10px;
+    color: var(--slide-text);
+}
+.card-body {
+    font-size: 18px; font-weight: 300; line-height: 1.5;
+    color: var(--slide-muted);
+}
+
+/* === SPEC TABLE === */
+.spec-table { width: 100%; border-collapse: collapse; }
+.spec-table th {
+    background: var(--ibm-blue); color: #FFFFFF;
+    font-size: 18px; font-weight: 700; padding: 14px 20px;
+    text-align: left;
+}
+.spec-table td {
+    font-size: 20px; font-weight: 400; padding: 12px 20px;
+    border-bottom: 1px solid var(--slide-border); color: var(--slide-text);
+}
+.spec-table tr:nth-child(even) td { background: var(--ibm-cool-gray); }
+.spec-badge {
+    display: inline-block; padding: 4px 12px;
+    font-size: 14px; font-weight: 700; border-radius: 2px;
+}
+.badge-blue   { background: #D0E2FF; color: #0043CE; }
+.badge-green  { background: #DEFBE6; color: #198038; }
+
+/* === NOTE BOX === */
+.note-box {
+    background: #EDF5FF; border-left: 4px solid var(--ibm-blue);
+    padding: 16px 20px; margin-top: 20px;
+    font-size: 20px; font-weight: 300; line-height: 1.5;
+    color: #1a1a1a;
+}
+.note-box strong { font-weight: 700; color: var(--ibm-blue); }
+
+/* === URL DISPLAY === */
+.url-row {
+    display: flex; align-items: center; gap: 20px;
+    padding: 14px 20px; margin: 8px 0;
+    background: var(--ibm-cool-gray);
+    border-left: 4px solid var(--ibm-teal);
+}
+.url-label {
+    font-size: 18px; font-weight: 700; min-width: 220px;
+    color: var(--slide-text);
+}
+.url-value {
+    font-family: var(--font-mono); font-size: 20px;
+    font-weight: 300; color: var(--ibm-blue);
+}
+.url-port {
+    margin-left: auto; font-size: 16px; font-weight: 700;
+    color: var(--slide-muted);
+}
+
+/* === STEP TIMELINE === */
+.step-row {
+    display: flex; align-items: flex-start; gap: 24px;
+    padding: 14px 0; border-bottom: 1px solid var(--slide-border);
+}
+.step-row:last-child { border-bottom: none; }
+.step-num {
+    flex: 0 0 48px; height: 48px;
+    background: var(--ibm-blue); color: #FFFFFF;
+    font-size: 20px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+}
+.step-content { flex: 1; padding-top: 4px; }
+.step-title { font-size: 22px; font-weight: 700; margin-bottom: 4px; color: var(--slide-text); }
+.step-desc  { font-size: 19px; font-weight: 300; line-height: 1.45; color: var(--slide-muted); }
+
+/* === DECK CONTROLS === */
+.deck-controls {
+    display: flex; gap: 8px; align-items: center;
+}
+.ctrl-btn {
+    background: rgba(255,255,255,0.15); color: #fff;
+    border: 1px solid rgba(255,255,255,0.3); padding: 8px 18px;
+    font-family: var(--font-body); font-size: 13px; cursor: pointer;
+    transition: background 0.2s;
+}
+.ctrl-btn:hover { background: rgba(255,255,255,0.3); }
+.ctrl-counter { color: rgba(255,255,255,0.7); font-size: 13px; font-family: var(--font-body); min-width: 50px; text-align: center; }
+</style>
+</head>
+<body>
+<div class="deck-viewport">
+<div class="deck-stage" id="stage">
+
+<!-- ============================================================ -->
+<!-- SLIDE 1: COVER                                               -->
+<!-- ============================================================ -->
+<div class="slide theme-blue active" id="slide-1">
+  <!-- IBM 8-bar logo (SVG, white) -->
+  <div class="cover-logo">
+    <svg class="ibm-logo-svg" viewBox="0 0 80 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="IBM">
+      <rect y="0"  width="80" height="4"  fill="white"/>
+      <rect y="7"  width="80" height="4"  fill="white"/>
+      <rect x="10" y="14" width="60" height="4" fill="white"/>
+      <rect x="10" y="21" width="60" height="4" fill="white"/>
+      <rect y="28" width="80" height="4" fill="white"/>
+    </svg>
+  </div>
+  <div class="cover-inner">
+    <div class="cover-eyebrow anim-fade-up">IBM Concert 3.0.x — Installation Guide</div>
+    <div class="cover-rule anim-fade-up"></div>
+    <h1 class="cover-title anim-fade-up">Installing Concert,<br>Concert Workflows &amp;<br>Concert Data Apps</h1>
+    <p class="cover-subtitle anim-fade-up">As a Root User on a Virtual Machine (VM)<br>x86 · Linux · K3s · Internet-Connected</p>
+  </div>
+  <div class="ibm-footer">
+    <span>IBM Concert / Installation Guide / 2025 / © 2025 IBM Corporation</span>
+    <span>01</span>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SLIDE 2: AGENDA                                              -->
+<!-- ============================================================ -->
+<div class="slide" id="slide-2">
+  <div class="slide-inner">
+    <h2 class="slide-title anim-fade-up">Agenda</h2>
+    <div class="slide-title-rule anim-fade-up"></div>
+    <div class="two-col">
+      <div class="col-left">
+        <ul class="bullet-list">
+          <li class="anim-fade-up">Overview &amp; Product Suite</li>
+          <li class="anim-fade-up">System Requirements (VM)</li>
+          <li class="anim-fade-up">Before You Begin — Prerequisites</li>
+          <li class="anim-fade-up">Installation Steps 1–8 (Root User)</li>
+          <li class="anim-fade-up">Accessing the UI</li>
+          <li class="anim-fade-up">Concert Workflows Deep Dive</li>
+          <li class="anim-fade-up">Concert Data Apps</li>
+          <li class="anim-fade-up">Next Steps &amp; Resources</li>
+        </ul>
+      </div>
+      <div class="col-right" style="padding-top:8px;">
+        <div class="info-card" style="margin-bottom:28px;">
+          <div class="card-title">Target Audience</div>
+          <div class="card-body">System administrators and IT operators installing IBM Concert on a Linux x86 virtual machine using root (or sudo) privileges with internet access.</div>
+        </div>
+        <div class="info-card accent-teal">
+          <div class="card-title">Scope</div>
+          <div class="card-body">This guide covers the full unified installation of <strong>Concert</strong>, <strong>Concert Workflows</strong>, and <strong>Concert Data Apps</strong> as a root user — the simplest installation path with full system privileges.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="ibm-footer">
+    <span>IBM Concert / Installation Guide / 2025 / © 2025 IBM Corporation</span>
+    <span>02</span>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SLIDE 3: DIVIDER — OVERVIEW                                  -->
+<!-- ============================================================ -->
+<div class="slide theme-blue" id="slide-3">
+  <div class="divider-inner">
+    <div class="divider-label anim-fade-up">Section 01</div>
+    <div class="divider-accent-bar anim-fade-up"></div>
+    <h2 class="divider-title anim-fade-up">Product Suite Overview</h2>
+  </div>
+  <div class="ibm-footer">
+    <span>IBM Concert / Installation Guide / 2025 / © 2025 IBM Corporation</span>
+    <span>03</span>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SLIDE 4: PRODUCT OVERVIEW CARDS                              -->
+<!-- ============================================================ -->
+<div class="slide" id="slide-4">
+  <div class="slide-inner">
+    <h2 class="slide-title anim-fade-up">The IBM Concert Platform</h2>
+    <div class="slide-title-rule anim-fade-up"></div>
+    <div class="card-grid card-grid-3" style="margin-top:0;">
+      <div class="info-card anim-fade-up">
+        <div class="card-title" style="font-size:22px;">IBM Concert</div>
+        <div class="card-body">The core AIOps platform. Provides unified observability, risk scoring, and change management for complex multi-cloud environments. Accessed on port <strong>12443</strong>.</div>
+      </div>
+      <div class="info-card accent-teal anim-fade-up">
+        <div class="card-title" style="font-size:22px;">Concert Workflows</div>
+        <div class="card-body">Automation and orchestration engine. Connects hundreds of integrations, automates remediation workflows, and reduces mean time to resolution. Accessed on port <strong>443</strong>.</div>
+      </div>
+      <div class="info-card accent-pink anim-fade-up">
+        <div class="card-title" style="font-size:22px;">Concert Data Apps</div>
+        <div class="card-body">Low-code platform for building full-featured, data-driven applications. Connect SQL, REST, GraphQL sources and build rich dashboards beyond static visualization. Port <strong>15443</strong>.</div>
+      </div>
+    </div>
+    <div class="note-box anim-fade-up" style="margin-top:28px;">
+      <strong>Note:</strong> For new installations on x86 VMs, <strong>K3s</strong> (a lightweight distribution of Kubernetes) is automatically installed. Its native containerd runtime is used as the default container runtime for all product components.
+    </div>
+  </div>
+  <div class="ibm-footer">
+    <span>IBM Concert / Installation Guide / 2025 / © 2025 IBM Corporation</span>
+    <span>04</span>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SLIDE 5: DIVIDER — SYSTEM REQUIREMENTS                       -->
+<!-- ============================================================ -->
+<div class="slide theme-blue" id="slide-5">
+  <div class="divider-inner">
+    <div class="divider-label anim-fade-up">Section 02</div>
+    <div class="divider-accent-bar anim-fade-up"></div>
+    <h2 class="divider-title anim-fade-up">System Requirements</h2>
+  </div>
+  <div class="ibm-footer">
+    <span>IBM Concert / Installation Guide / 2025 / © 2025 IBM Corporation</span>
+    <span>05</span>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SLIDE 6: SYSTEM REQUIREMENTS TABLE                           -->
+<!-- ============================================================ -->
+<div class="slide" id="slide-6">
+  <div class="slide-inner">
+    <h2 class="slide-title anim-fade-up">VM Sizing Specifications</h2>
+    <div class="slide-title-rule anim-fade-up"></div>
+    <div class="two-col">
+      <div class="col-left anim-fade-up">
+        <div style="font-size:20px;font-weight:700;margin-bottom:12px;color:var(--ibm-blue);">Concert + Workflows + Data Apps</div>
+        <table class="spec-table">
+          <thead><tr><th>Component</th><th>Testing</th><th>Production</th></tr></thead>
+          <tbody>
+            <tr><td>CPU Cores</td><td>16 cores</td><td>16 cores</td></tr>
+            <tr><td>RAM</td><td>32 Gi</td><td>32 Gi</td></tr>
+            <tr><td>Disk Space</td><td>256 GB</td><td>512 GB</td></tr>
+          </tbody>
+        </table>
+        <div style="font-size:20px;font-weight:700;margin:28px 0 12px;color:var(--ibm-blue);">Concert Workflows Only</div>
+        <table class="spec-table">
+          <thead><tr><th>Component</th><th>Testing</th><th>Production</th></tr></thead>
+          <tbody>
+            <tr><td>CPU Cores</td><td>8 cores</td><td>16 cores</td></tr>
+            <tr><td>RAM</td><td>16 Gi</td><td>32 Gi</td></tr>
+            <tr><td>Disk Space</td><td>256 GB</td><td>512 GB</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="col-right anim-fade-up">
+        <div style="font-size:20px;font-weight:700;margin-bottom:12px;">OS &amp; Architecture Requirements</div>
+        <ul class="bullet-list" style="margin-bottom:28px;">
+          <li>Linux® x86_64-v3 architecture</li>
+          <li>RHEL 8.x, 9.x or compatible distribution</li>
+          <li>Internet access to IBM Container Registry</li>
+          <li>Valid IBM Entitlement Key</li>
+          <li>Root user or sudo privileges</li>
+        </ul>
+        <div class="info-card accent-purple">
+          <div class="card-title">Storage Recommendation</div>
+          <div class="card-body">For optimal performance use <strong>SSD</strong> or <strong>NVMe</strong> drives on-premises. Minimum 50 GB+ free space per product component for container images.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="ibm-footer">
+    <span>IBM Concert / Installation Guide / 2025 / © 2025 IBM Corporation</span>
+    <span>06</span>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SLIDE 7: DIVIDER — BEFORE YOU BEGIN                          -->
+<!-- ============================================================ -->
+<div class="slide theme-blue" id="slide-7">
+  <div class="divider-inner">
+    <div class="divider-label anim-fade-up">Section 03</div>
+    <div class="divider-accent-bar anim-fade-up"></div>
+    <h2 class="divider-title anim-fade-up">Before You Begin</h2>
+  </div>
+  <div class="ibm-footer">
+    <span>IBM Concert / Installation Guide / 2025 / © 2025 IBM Corporation</span>
+    <span>07</span>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SLIDE 8: PREREQUISITES                                       -->
+<!-- ============================================================ -->
+<div class="slide" id="slide-8">
+  <div class="slide-inner">
+    <h2 class="slide-title anim-fade-up">Prerequisites — Root User Installation</h2>
+    <div class="slide-title-rule anim-fade-up"></div>
+    <div class="two-col">
+      <div class="col-left">
+        <ul class="bullet-list">
+          <li class="anim-fade-up">System meets all VM sizing specifications</li>
+          <li class="anim-fade-up">Valid <strong>IBM Entitlement Key</strong> obtained from <em>myibm.ibm.com</em></li>
+          <li class="anim-fade-up">Log in as <strong>root user</strong> or use <code style="font-family:var(--font-mono);background:#F1F4F7;padding:2px 6px;">sudo</code> for all commands</li>
+          <li class="anim-fade-up">Internet access to <strong>IBM Container Registry</strong> (<em>cp.icr.io</em>)</li>
+          <li class="anim-fade-up">Reviewed and agreed to applicable <strong>IBM Software License</strong></li>
+          <li class="anim-fade-up">Optional: External PostgreSQL / MySQL databases pre-configured</li>
+        </ul>
+      </div>
+      <div class="col-right anim-fade-up">
+        <div style="font-size:20px;font-weight:700;margin-bottom:14px;">Obtaining Your IBM Entitlement Key</div>
+        <div class="step-row">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <div class="step-title">Log in to IBM Container Library</div>
+            <div class="step-desc">Navigate to <span style="font-family:var(--font-mono);font-size:16px;color:var(--ibm-blue);">myibm.ibm.com/products-services/containerlibrary</span></div>
+          </div>
+        </div>
+        <div class="step-row">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <div class="step-title">Go to Entitlement Keys tab</div>
+            <div class="step-desc">Click <strong>Copy</strong> to copy the entitlement key to clipboard</div>
+          </div>
+        </div>
+        <div class="step-row">
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <div class="step-title">Save securely</div>
+            <div class="step-desc">Store the API key in a text file or secure credential vault before proceeding</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="ibm-footer">
+    <span>IBM Concert / Installation Guide / 2025 / © 2025 IBM Corporation</span>
+    <span>08</span>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SLIDE 9: DIVIDER — INSTALLATION STEPS                        -->
+<!-- ============================================================ -->
+<div class="slide theme-blue" id="slide-9">
+  <div class="divider-inner">
+    <div class="divider-label anim-fade-up">Section 04</div>
+    <div class="divider-accent-bar anim-fade-up"></div>
+    <h2 class="divider-title anim-fade-up">Installation Steps<br>(Root User — VM)</h2>
+  </div>
+  <div class="ibm-footer">
+    <span>IBM Concert / Installation Guide / 2025 / © 2025 IBM Corporation</span>
+    <span>09</span>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SLIDE 10: STEP 1 — EXTERNAL DB (OPTIONAL) + DOWNLOAD        -->
+<!-- ============================================================ -->
+<div class="slide" id="slide-10">
+  <div class="slide-inner">
+    <h2 class="slide-title anim-fade-up">Step 1 (Optional) &amp; Step 2 — Configure &amp; Download</h2>
+    <div class="slide-title-rule anim-fade-up"></div>
+    <div class="two-col">
+      <div class="col-left anim-fade-up">
+        <div style="font-size:20px;font-weight:700;margin-bottom:12px;color:var(--ibm-blue);">Step 1: Configure External Databases (Optional)</div>
+        <p style="font-size:21px;font-weight:300;line-height:1.5;color:var(--slide-muted);margin:0 0 16px 0;">You may use external databases instead of the default internal storage. Configure external services for Concert and Concert Data Apps before installation if needed.</p>
+        <div class="note-box">
+          <strong>Tip:</strong> Skip Step 1 for a default installation. Internal databases are provided and configured automatically.
+        </div>
+      </div>
+      <div class="col-right anim-fade-up">
+        <div style="font-size:20px;font-weight:700;margin-bottom:12px;color:var(--ibm-blue);">Step 2: Download &amp; Extract Package</div>
+        <div class="code-block"><span class="code-comment"># Download from GitHub Releases</span>
+wget https://github.com/IBM/Concert/releases/\
+  download/v3.0.0/ibm-concert-x86.tar.gz
+
+<span class="code-comment"># Set secure file permissions</span>
+umask 0022
+
+<span class="code-comment"># Extract the installation package</span>
+tar -xzf ibm-concert-x86.tar.gz
+
+<span class="code-comment"># Export install directory</span>
+<span class="code-highlight">export INSTALL_DIR=&lt;install_dir&gt;/ibm-concert</span>
+
+<span class="code-comment"># Navigate to install directory</span>
+cd $INSTALL_DIR</div>
+      </div>
+    </div>
+  </div>
+  <div class="ibm-footer">
+    <span>IBM Concert / Installation Guide / 2025 / © 2025 IBM Corporation</span>
+    <span>10</span>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SLIDE 11: STEP 3 — INSTALL PREREQS                          -->
+<!-- ============================================================ -->
+<div class="slide" id="slide-11">
+  <div class="slide-inner">
+    <h2 class="slide-title anim-fade-up">Step 3 — Install &amp; Configure Prerequisites</h2>
+    <div class="slide-title-rule anim-fade-up"></div>
+    <div class="two-col">
+      <div class="col-left anim-fade-up">
+        <p style="font-size:22px;font-weight:300;line-height:1.55;color:var(--slide-muted);margin:0 0 20px 0;">Run the prerequisite management script to install and configure <strong>K3s</strong> (lightweight Kubernetes) and <strong>Helm</strong> binaries required for the deployment.</p>
+        <div class="code-block"><span class="code-highlight">$INSTALL_DIR/bin/manage-prereqs-vm --install</span>
+
+<span class="code-comment"># Apply changes to the current session</span>
+source ~/.bashrc
+
+<span class="code-comment"># Verify configuration</span>
+echo $KUBECONFIG
+umask   <span class="code-comment"># Expected: 0022</span></div>
+      </div>
+      <div class="col-right anim-fade-up">
+        <div style="font-size:20px;font-weight:700;margin-bottom:16px;">What gets installed</div>
+        <div class="step-row">
+          <div class="step-num" style="background:#3BDAD8;color:#000;">K3s</div>
+          <div class="step-content">
+            <div class="step-title">Lightweight Kubernetes</div>
+            <div class="step-desc">Single-binary K3s distribution with native containerd runtime. Automatically configured as the cluster backend.</div>
+          </div>
+        </div>
+        <div class="step-row">
+          <div class="step-num" style="background:#BE94FE;color:#000;">Helm</div>
+          <div class="step-content">
+            <div class="step-title">Helm v3.x</div>
+            <div class="step-desc">Package manager for Kubernetes. Used to deploy Concert component charts into the K3s cluster.</div>
+          </div>
+        </div>
+        <div class="note-box" style="margin-top:20px;">
+          <strong>Note:</strong> K3s binaries are saved to <code style="font-family:var(--font-mono);font-size:16px;">ibm-concert/prereqs/</code> directory automatically.
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="ibm-footer">
+    <span>IBM Concert / Installation Guide / 2025 / © 2025 IBM Corporation</span>
+    <span>11</span>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SLIDE 12: STEP 4 — CUSTOM VALUES (OPTIONAL)                 -->
+<!-- ============================================================ -->
+<div class="slide" id="slide-12">
+  <div class="slide-inner">
+    <h2 class="slide-title anim-fade-up">Step 4 (Optional) — Create Custom Values File</h2>
+    <div class="slide-title-rule anim-fade-up"></div>
+    <div class="two-col">
+      <div class="col-left anim-fade-up">
+        <p style="font-size:22px;font-weight:300;line-height:1.55;color:var(--slide-muted);margin:0 0 20px 0;">Customize your <strong>Concert Workflows</strong> installation by creating a custom values file. This allows you to enable advanced features and optimize CPU/memory resource allocation for Workflows microservices.</p>
+        <div class="code-block"><span class="code-comment"># Create a custom values file</span>
+vi $INSTALL_DIR/custom-values.yaml
+
+<span class="code-comment"># Example: Optimize resource allocation</span>
+<span class="code-highlight">resources:
+  limits:
+    cpu: "2"
+    memory: "4Gi"</span>
+
+<span class="code-comment"># Save and exit (:wq)</span></div>
+      </div>
+      <div class="col-right anim-fade-up">
+        <div style="font-size:20px;font-weight:700;margin-bottom:16px;">Step 5 (Optional): Configure Workflow Integrations</div>
+        <p style="font-size:21px;font-weight:300;line-height:1.5;color:var(--slide-muted);margin:0 0 16px 0;">By default, <strong>several hundred integrations</strong> are installed with Concert Workflows. To speed up installation, configure a custom subset:</p>
+        <ul class="bullet-list" style="font-size:20px;">
+          <li>Install only commonly-used integrations</li>
+          <li>Define a customized integration set</li>
+          <li>Reduces installation time significantly</li>
+        </ul>
+        <div class="note-box">
+          <strong>Note:</strong> Applies only if Concert Workflows is included in your installation. See <em>Configuring workflow integrations</em> for details.
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="ibm-footer">
+    <span>IBM Concert / Installation Guide / 2025 / © 2025 IBM Corporation</span>
+    <span>12</span>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SLIDE 13: STEP 6 — PARAMS.INI                               -->
+<!-- ============================================================ -->
+<div class="slide" id="slide-13">
+  <div class="slide-inner">
+    <h2 class="slide-title anim-fade-up">Step 6 — Configure the params.ini File</h2>
+    <div class="slide-title-rule anim-fade-up"></div>
+    <div class="two-col">
+      <div class="col-left anim-fade-up">
+        <p style="font-size:21px;font-weight:300;line-height:1.5;color:var(--slide-muted);margin:0 0 16px 0;">The <code style="font-family:var(--font-mono);font-size:18px;background:#F1F4F7;padding:2px 6px;">params.ini</code> file defines environment-specific settings that the installation script uses to configure all Concert components.</p>
+        <div class="code-block"><span class="code-comment"># Copy the appropriate sample params file</span>
+cp $INSTALL_DIR/etc/sample-params/\
+  concert-workflows-dataapps-vm-params.ini \
+  $INSTALL_DIR/etc/params.ini
+
+<span class="code-comment"># Open and edit the params file</span>
+vi $INSTALL_DIR/etc/params.ini</div>
+        <div class="note-box" style="margin-top:16px;">
+          <strong>Location:</strong> <code style="font-family:var(--font-mono);font-size:16px;">$INSTALL_DIR/etc/params.ini</code>
+        </div>
+      </div>
+      <div class="col-right anim-fade-up">
+        <div style="font-size:20px;font-weight:700;margin-bottom:14px;">Key Parameters</div>
+        <table class="spec-table" style="font-size:17px;">
+          <thead><tr><th>Parameter</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code style="font-family:var(--font-mono);">INSTALL_VM</code></td><td>Set to <code style="font-family:var(--font-mono);">true</code> for VM deployment</td></tr>
+            <tr><td><code style="font-family:var(--font-mono);">INSTALL_CONCERT</code></td><td>Set <code style="font-family:var(--font-mono);">TRUE</code> to install Concert core</td></tr>
+            <tr><td><code style="font-family:var(--font-mono);">INSTALL_WORKFLOWS</code></td><td>Set <code style="font-family:var(--font-mono);">TRUE</code> for Concert Workflows</td></tr>
+            <tr><td><code style="font-family:var(--font-mono);">INSTALL_DATAAPPS</code></td><td>Set <code style="font-family:var(--font-mono);">TRUE</code> for Concert Data Apps</td></tr>
+            <tr><td><code style="font-family:var(--font-mono);">WORKFLOWS_NS</code></td><td>Fixed namespace: <code style="font-family:var(--font-mono);">rna-core</code> (do not change)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="ibm-footer">
+    <span>IBM Concert / Installation Guide / 2025 / © 2025 IBM Corporation</span>
+    <span>13</span>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SLIDE 14: STEP 7 — LLM AUTH (OPTIONAL)                      -->
+<!-- ============================================================ -->
+<div class="slide" id="slide-14">
+  <div class="slide-inner">
+    <h2 class="slide-title anim-fade-up">Step 7 (Optional) — Authenticate to an LLM Instance</h2>
+    <div class="slide-title-rule anim-fade-up"></div>
+    <div class="two-col">
+      <div class="col-left anim-fade-up">
+        <p style="font-size:22px;font-weight:300;line-height:1.55;color:var(--slide-muted);margin:0 0 20px 0;">If using AI-powered features in Concert Workflows, configure authentication to your LLM provider before running the installation setup script.</p>
+        <div style="font-size:19px;font-weight:700;margin-bottom:10px;color:var(--ibm-blue);">watsonx.ai (SaaS)</div>
+        <div class="code-block">export WATSONX_API_KEY=&lt;my-watsonx-api-key&gt;</div>
+        <div style="font-size:19px;font-weight:700;margin:16px 0 10px;color:var(--ibm-blue);">watsonx.ai (On-Premises)</div>
+        <div class="code-block">export WATSONX_API_PASSWORD=&lt;my-secret-password&gt;</div>
+        <div style="font-size:19px;font-weight:700;margin:16px 0 10px;color:var(--ibm-blue);">vLLM Instance</div>
+        <div class="code-block">export LLM_API_KEY=&lt;my-vllm-api-key&gt;</div>
+      </div>
+      <div class="col-right anim-fade-up">
+        <div style="font-size:20px;font-weight:700;margin-bottom:16px;">Supported LLM Providers</div>
+        <div class="card-grid" style="grid-template-columns:1fr;gap:16px;">
+          <div class="info-card" style="padding:18px 20px;">
+            <div class="card-title">watsonx.ai</div>
+            <div class="card-body">IBM's AI engine for smart predictions, automated text analysis, and workflow automation. Available as SaaS or on-premises deployment.</div>
+          </div>
+          <div class="info-card accent-teal" style="padding:18px 20px;">
+            <div class="card-title">vLLM Instance</div>
+            <div class="card-body">Custom vLLM-provided model instance requiring API key authentication for the vLLM endpoint.</div>
+          </div>
+        </div>
+        <div class="note-box" style="margin-top:16px;">
+          <strong>Optional:</strong> This step is only required if you plan to use AI-assisted features. You can configure LLM access after installation.
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="ibm-footer">
+    <span>IBM Concert / Installation Guide / 2025 / © 2025 IBM Corporation</span>
+    <span>14</span>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SLIDE 15: STEP 8 — RUN SETUP SCRIPT                         -->
+<!-- ============================================================ -->
+<div class="slide" id="slide-15">
+  <div class="slide-inner">
+    <h2 class="slide-title anim-fade-up">Step 8 — Run the Installation Setup Script</h2>
+    <div class="slide-title-rule anim-fade-up"></div>
+    <div class="two-col">
+      <div class="col-left anim-fade-up">
+        <p style="font-size:21px;font-weight:300;line-height:1.5;color:var(--slide-muted);margin:0 0 16px 0;">Set the IBM Container Registry password, then run the setup script to deploy all three products on your VM.</p>
+        <div class="code-block"><span class="code-comment"># Set your IBM entitlement key as registry password</span>
+export REG_PASS=&lt;IBM entitlement key&gt;
+
+<span class="code-comment"># Run the installation setup script</span>
+<span class="code-highlight">$INSTALL_DIR/bin/setup \
+  --license_acceptance=y \
+  --username=&lt;user&gt; \
+  --password=&lt;password&gt; \
+  --registry_password=&lt;registry_entitlement_key&gt;</span></div>
+        <div class="note-box" style="margin-top:16px;">
+          <strong>Important:</strong> The <code style="font-family:var(--font-mono);font-size:16px;">--username</code> and <code style="font-family:var(--font-mono);font-size:16px;">--password</code> you specify will become the <strong>default login credentials</strong> for all installed Concert products.
+        </div>
+      </div>
+      <div class="col-right anim-fade-up">
+        <div style="font-size:20px;font-weight:700;margin-bottom:14px;">Setup Script Parameters</div>
+        <table class="spec-table" style="font-size:17px;">
+          <thead><tr><th>Parameter</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code style="font-family:var(--font-mono);">--license_acceptance</code></td><td>Must be set to <code style="font-family:var(--font-mono);">y</code> to proceed</td></tr>
+            <tr><td><code style="font-family:var(--font-mono);">--username</code></td><td>Default login username for Concert UI</td></tr>
+            <tr><td><code style="font-family:var(--font-mono);">--password</code></td><td>Default login password (prompted if omitted)</td></tr>
+            <tr><td><code style="font-family:var(--font-mono);">--registry_password</code></td><td>IBM Entitlement Key for <em>cp.icr.io</em></td></tr>
+          </tbody>
+        </table>
+        <div class="info-card accent-teal" style="margin-top:20px;padding:16px 20px;">
+          <div class="card-title">Installation Duration</div>
+          <div class="card-body">The installation process takes <strong>15–30 minutes</strong> depending on system resources and network speed.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="ibm-footer">
+    <span>IBM Concert / Installation Guide / 2025 / © 2025 IBM Corporation</span>
+    <span>15</span>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SLIDE 16: VERIFY + ACCESS UI                                 -->
+<!-- ============================================================ -->
+<div class="slide" id="slide-16">
+  <div class="slide-inner">
+    <h2 class="slide-title anim-fade-up">Verify Installation &amp; Access the UI</h2>
+    <div class="slide-title-rule anim-fade-up"></div>
+    <div class="two-col">
+      <div class="col-left anim-fade-up">
+        <div style="font-size:20px;font-weight:700;margin-bottom:14px;color:var(--ibm-blue);">Verify Successful Deployment</div>
+        <p style="font-size:21px;font-weight:300;line-height:1.5;color:var(--slide-muted);margin:0 0 12px 0;">Upon successful installation you will see:</p>
+        <div class="code-block" style="background:#DEFBE6;border-left-color:#198038;"><span style="color:#198038;font-weight:700;">INFO DEPLOYMENT SUCCESSFUL</span></div>
+        <p style="font-size:19px;font-weight:300;line-height:1.5;color:var(--slide-muted);margin:16px 0 8px 0;">If errors occur, check the installation logs:</p>
+        <div class="code-block">$INSTALL_DIR/localstorage/logs/\
+prod_install_logs_&lt;timestamp&gt;.log</div>
+      </div>
+      <div class="col-right anim-fade-up">
+        <div style="font-size:20px;font-weight:700;margin-bottom:16px;">Component Access URLs</div>
+        <div class="url-row">
+          <div class="url-label">Concert</div>
+          <div class="url-value">https://&lt;VM_FQDN&gt;:12443</div>
+          <div class="url-port">Port 12443</div>
+        </div>
+        <div class="url-row" style="border-left-color:var(--ibm-teal);">
+          <div class="url-label">Concert Workflows</div>
+          <div class="url-value">https://&lt;VM_FQDN&gt;:443</div>
+          <div class="url-port">Port 443</div>
+        </div>
+        <div class="url-row" style="border-left-color:var(--ibm-pink);">
+          <div class="url-label">Concert Data Apps</div>
+          <div class="url-value">https://&lt;VM_FQDN&gt;:15443</div>
+          <div class="url-port">Port 15443</div>
+        </div>
+        <div class="note-box" style="margin-top:16px;">
+          <strong>Note:</strong> A browser security warning about the SSL certificate is expected for self-signed certificates. Use <strong>Bring Your Own Certificate</strong> to replace with a trusted cert. For local access, use <code style="font-family:var(--font-mono);font-size:16px;">localhost</code> instead of the FQDN.
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="ibm-footer">
+    <span>IBM Concert / Installation Guide / 2025 / © 2025 IBM Corporation</span>
+    <span>16</span>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SLIDE 17: DIVIDER — CONCERT WORKFLOWS                        -->
+<!-- ============================================================ -->
+<div class="slide theme-blue" id="slide-17">
+  <div class="divider-inner">
+    <div class="divider-label anim-fade-up">Section 05</div>
+    <div class="divider-accent-bar anim-fade-up"></div>
+    <h2 class="divider-title anim-fade-up">Concert Workflows</h2>
+  </div>
+  <div class="ibm-footer">
+    <span>IBM Concert / Installation Guide / 2025 / © 2025 IBM Corporation</span>
+    <span>17</span>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SLIDE 18: CONCERT WORKFLOWS OVERVIEW                         -->
+<!-- ============================================================ -->
+<div class="slide" id="slide-18">
+  <div class="slide-inner">
+    <h2 class="slide-title anim-fade-up">Concert Workflows — Standalone VM Installation</h2>
+    <div class="slide-title-rule anim-fade-up"></div>
+    <div class="two-col">
+      <div class="col-left anim-fade-up">
+        <p style="font-size:22px;font-weight:300;line-height:1.55;color:var(--slide-muted);margin:0 0 20px 0;">Concert Workflows can also be installed <strong>standalone</strong> (without Concert core or Data Apps). The root user installation process mirrors the unified install but uses Workflows-specific sample params.</p>
+        <div style="font-size:20px;font-weight:700;margin-bottom:12px;color:var(--ibm-blue);">Workflows-Only params.ini</div>
+        <div class="code-block"><span class="code-comment"># Copy the Workflows-specific params</span>
+cp $INSTALL_DIR/etc/sample-params/\
+  workflows-quickstart-vm-params.ini \
+  $INSTALL_DIR/etc/params.ini
+
+vi $INSTALL_DIR/etc/params.ini</div>
+        <div class="note-box" style="margin-top:14px;">
+          <strong>Note:</strong> The <code style="font-family:var(--font-mono);font-size:16px;">WORKFLOWS_NS</code> specifies the namespace where Concert Workflows will be installed. The value is fixed as <code style="font-family:var(--font-mono);font-size:16px;">rna-core</code> — do not modify.
+        </div>
+      </div>
+      <div class="col-right anim-fade-up">
+        <div style="font-size:20px;font-weight:700;margin-bottom:16px;">Standalone Steps Summary</div>
+        <div class="step-row">
+          <div class="step-num">1</div>
+          <div class="step-content"><div class="step-title">Configure External DBs (Optional)</div><div class="step-desc">External MySQL or PostgreSQL configuration</div></div>
+        </div>
+        <div class="step-row">
+          <div class="step-num">2</div>
+          <div class="step-content"><div class="step-title">Download &amp; Extract Package</div><div class="step-desc"><code style="font-family:var(--font-mono);font-size:15px;">ibm-concert-x86.tar.gz</code> from GitHub Releases</div></div>
+        </div>
+        <div class="step-row">
+          <div class="step-num">3</div>
+          <div class="step-content"><div class="step-title">Select &amp; Modify params.ini</div><div class="step-desc">Use <code style="font-family:var(--font-mono);font-size:15px;">workflows-quickstart-vm-params.ini</code> template</div></div>
+        </div>
+        <div class="step-row">
+          <div class="step-num">4</div>
+          <div class="step-content"><div class="step-title">Run Setup Script</div><div class="step-desc">Same <code style="font-family:var(--font-mono);font-size:15px;">bin/setup</code> command with entitlement key</div></div>
+        </div>
+        <div class="step-row">
+          <div class="step-num">5</div>
+          <div class="step-content"><div class="step-title">Access Workflows UI</div><div class="step-desc"><code style="font-family:var(--font-mono);font-size:15px;">https://&lt;VM_FQDN&gt;:443</code></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="ibm-footer">
+    <span>IBM Concert / Installation Guide / 2025 / © 2025 IBM Corporation</span>
+    <span>18</span>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SLIDE 19: DIVIDER — CONCERT DATA APPS                        -->
+<!-- ============================================================ -->
+<div class="slide theme-blue" id="slide-19">
+  <div class="divider-inner">
+    <div class="divider-label anim-fade-up">Section 06</div>
+    <div class="divider-accent-bar anim-fade-up"></div>
+    <h2 class="divider-title anim-fade-up">Concert Data Apps</h2>
+  </div>
+  <div class="ibm-footer">
+    <span>IBM Concert / Installation Guide / 2025 / © 2025 IBM Corporation</span>
+    <span>19</span>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SLIDE 20: CONCERT DATA APPS OVERVIEW                         -->
+<!-- ============================================================ -->
+<div class="slide" id="slide-20">
+  <div class="slide-inner">
+    <h2 class="slide-title anim-fade-up">Concert Data Apps — Overview &amp; Enablement</h2>
+    <div class="slide-title-rule anim-fade-up"></div>
+    <div class="two-col">
+      <div class="col-left anim-fade-up">
+        <div style="font-size:20px;font-weight:700;margin-bottom:12px;color:var(--ibm-blue);">Enabling Concert Data Apps</div>
+        <p style="font-size:21px;font-weight:300;line-height:1.5;color:var(--slide-muted);margin:0 0 12px 0;">In your <code style="font-family:var(--font-mono);font-size:18px;background:#F1F4F7;padding:2px 5px;">params.ini</code>, set the following parameter to enable Data Apps as part of the deployment:</p>
+        <div class="code-block"><span class="code-comment"># In params.ini — enable Data Apps</span>
+<span class="code-highlight">INSTALL_DATAAPPS=true</span>
+
+<span class="code-comment"># Setting false (or blank) skips Data Apps</span>
+INSTALL_DATAAPPS=false</div>
+        <div style="font-size:20px;font-weight:700;margin-top:20px;margin-bottom:12px;color:var(--ibm-blue);">Getting Started Workflow</div>
+        <ul class="bullet-list" style="font-size:19px;">
+          <li>Set up a project in the <strong>Data Apps</strong> section of Concert UI</li>
+          <li>Connect to required data sources (SQL, REST, GraphQL)</li>
+          <li>Create dashboards with tables, charts, forms, KPIs</li>
+          <li>Export Data Apps to run in another instance or environment</li>
+        </ul>
+      </div>
+      <div class="col-right anim-fade-up">
+        <div style="font-size:20px;font-weight:700;margin-bottom:16px;">Supported Data Sources</div>
+        <div class="card-grid" style="grid-template-columns:1fr 1fr;gap:16px;">
+          <div class="info-card" style="padding:16px 18px;">
+            <div class="card-title" style="font-size:17px;">SQL Databases</div>
+            <div class="card-body" style="font-size:16px;">PostgreSQL, MySQL, and other relational databases via standard connection URIs</div>
+          </div>
+          <div class="info-card accent-teal" style="padding:16px 18px;">
+            <div class="card-title" style="font-size:17px;">REST APIs</div>
+            <div class="card-body" style="font-size:16px;">Connect to any REST endpoint for real-time dynamic data</div>
+          </div>
+          <div class="info-card accent-pink" style="padding:16px 18px;">
+            <div class="card-title" style="font-size:17px;">GraphQL</div>
+            <div class="card-body" style="font-size:16px;">Flexible query layer for aggregating data from multiple services</div>
+          </div>
+          <div class="info-card accent-purple" style="padding:16px 18px;">
+            <div class="card-title" style="font-size:17px;">watsonx.ai</div>
+            <div class="card-body" style="font-size:16px;">IBM's AI engine for smart predictions, text processing, or automation</div>
+          </div>
+        </div>
+        <div class="note-box" style="margin-top:14px;">
+          <strong>Access URL:</strong> <code style="font-family:var(--font-mono);font-size:16px;">https://&lt;VM_FQDN&gt;:15443</code>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="ibm-footer">
+    <span>IBM Concert / Installation Guide / 2025 / © 2025 IBM Corporation</span>
+    <span>20</span>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SLIDE 21: INSTALLATION SUMMARY                               -->
+<!-- ============================================================ -->
+<div class="slide theme-gray" id="slide-21">
+  <div class="slide-inner">
+    <h2 class="slide-title anim-fade-up">Installation Steps Summary — Root User (VM)</h2>
+    <div class="slide-title-rule anim-fade-up"></div>
+    <div class="two-col">
+      <div class="col-left anim-fade-up">
+        <div class="step-row" style="padding:10px 0;">
+          <div class="step-num" style="width:40px;height:40px;font-size:17px;">1</div>
+          <div class="step-content"><div class="step-title" style="font-size:19px;">Configure External DBs</div><div class="step-desc" style="font-size:16px;">Optional — external PostgreSQL / MySQL</div></div>
+        </div>
+        <div class="step-row" style="padding:10px 0;">
+          <div class="step-num" style="width:40px;height:40px;font-size:17px;">2</div>
+          <div class="step-content"><div class="step-title" style="font-size:19px;">Download &amp; Extract</div><div class="step-desc" style="font-size:16px;">wget + tar from GitHub Releases v3.0.0</div></div>
+        </div>
+        <div class="step-row" style="padding:10px 0;">
+          <div class="step-num" style="width:40px;height:40px;font-size:17px;">3</div>
+          <div class="step-content"><div class="step-title" style="font-size:19px;">Install Prerequisites</div><div class="step-desc" style="font-size:16px;">manage-prereqs-vm → K3s + Helm</div></div>
+        </div>
+        <div class="step-row" style="padding:10px 0;">
+          <div class="step-num" style="width:40px;height:40px;font-size:17px;">4</div>
+          <div class="step-content"><div class="step-title" style="font-size:19px;">Custom Values File</div><div class="step-desc" style="font-size:16px;">Optional — microservice resource tuning</div></div>
+        </div>
+      </div>
+      <div class="col-right anim-fade-up">
+        <div class="step-row" style="padding:10px 0;">
+          <div class="step-num" style="width:40px;height:40px;font-size:17px;">5</div>
+          <div class="step-content"><div class="step-title" style="font-size:19px;">Configure Workflow Integrations</div><div class="step-desc" style="font-size:16px;">Optional — select integration subset</div></div>
+        </div>
+        <div class="step-row" style="padding:10px 0;">
+          <div class="step-num" style="width:40px;height:40px;font-size:17px;">6</div>
+          <div class="step-content"><div class="step-title" style="font-size:19px;">Configure params.ini</div><div class="step-desc" style="font-size:16px;">Set products, namespace, environment</div></div>
+        </div>
+        <div class="step-row" style="padding:10px 0;">
+          <div class="step-num" style="width:40px;height:40px;font-size:17px;">7</div>
+          <div class="step-content"><div class="step-title" style="font-size:19px;">Authenticate LLM (Optional)</div><div class="step-desc" style="font-size:16px;">Export watsonx / vLLM API keys</div></div>
+        </div>
+        <div class="step-row" style="padding:10px 0;">
+          <div class="step-num" style="width:40px;height:40px;font-size:17px;">8</div>
+          <div class="step-content"><div class="step-title" style="font-size:19px;">Run Setup Script</div><div class="step-desc" style="font-size:16px;">bin/setup → INFO DEPLOYMENT SUCCESSFUL</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="ibm-footer">
+    <span>IBM Concert / Installation Guide / 2025 / © 2025 IBM Corporation</span>
+    <span>21</span>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SLIDE 22: NEXT STEPS                                         -->
+<!-- ============================================================ -->
+<div class="slide" id="slide-22">
+  <div class="slide-inner">
+    <h2 class="slide-title anim-fade-up">Next Steps &amp; Resources</h2>
+    <div class="slide-title-rule anim-fade-up"></div>
+    <div class="two-col">
+      <div class="col-left">
+        <div style="font-size:20px;font-weight:700;margin-bottom:14px;" class="anim-fade-up">After Installation</div>
+        <ul class="bullet-list">
+          <li class="anim-fade-up">Manage user permissions via <strong>Managing Users and Roles</strong> guide</li>
+          <li class="anim-fade-up">Configure SSL: <strong>Bring Your Own SSL Certificate</strong> for Concert &amp; Data Apps</li>
+          <li class="anim-fade-up">Set up Concert Data Apps data sources (SQL, REST, GraphQL)</li>
+          <li class="anim-fade-up">Review <strong>IBM Concert Software License Metrics (VM Edition)</strong></li>
+          <li class="anim-fade-up">Configure <strong>backup and restore</strong> for Concert, Workflows, and Data Apps</li>
+        </ul>
+      </div>
+      <div class="col-right anim-fade-up">
+        <div style="font-size:20px;font-weight:700;margin-bottom:14px;">Additional Deployment Options</div>
+        <div class="card-grid" style="grid-template-columns:1fr;gap:16px;">
+          <div class="info-card" style="padding:16px 20px;">
+            <div class="card-title" style="font-size:17px;">FIPS-Enabled VM</div>
+            <div class="card-body" style="font-size:16px;">Install Concert and Concert Workflows on a FIPS-enabled VM for enhanced security compliance.</div>
+          </div>
+          <div class="info-card accent-teal" style="padding:16px 20px;">
+            <div class="card-title" style="font-size:17px;">Air-Gapped Environment</div>
+            <div class="card-body" style="font-size:16px;">Install in an air-gapped (offline) VM by loading images directly into K3s containerd via a transfer archive.</div>
+          </div>
+          <div class="info-card accent-pink" style="padding:16px 20px;">
+            <div class="card-title" style="font-size:17px;">Remote Hub (VM)</div>
+            <div class="card-body" style="font-size:16px;">Deploy Hub on a dedicated cluster and connect product instances via an external HTTPS endpoint.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="ibm-footer">
+    <span>IBM Concert / Installation Guide / 2025 / © 2025 IBM Corporation</span>
+    <span>22</span>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SLIDE 23: THANK YOU / CLOSE                                  -->
+<!-- ============================================================ -->
+<div class="slide theme-blue" id="slide-23">
+  <div class="cover-logo">
+    <svg class="ibm-logo-svg" viewBox="0 0 80 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="IBM">
+      <rect y="0"  width="80" height="4"  fill="white"/>
+      <rect y="7"  width="80" height="4"  fill="white"/>
+      <rect x="10" y="14" width="60" height="4" fill="white"/>
+      <rect x="10" y="21" width="60" height="4" fill="white"/>
+      <rect y="28" width="80" height="4" fill="white"/>
+    </svg>
+  </div>
+  <div class="cover-inner">
+    <div class="cover-eyebrow anim-fade-up">IBM Concert 3.0.x</div>
+    <div class="cover-rule anim-fade-up"></div>
+    <h1 class="cover-title anim-fade-up" style="font-size:72px;">Thank You</h1>
+    <p class="cover-subtitle anim-fade-up">For full documentation and troubleshooting guides, visit the IBM Concert documentation portal.<br><br>
+    <span style="font-family:'IBM Plex Mono',monospace;font-size:22px;opacity:0.85;">https://github.com/IBM/Concert/releases</span></p>
+  </div>
+  <div class="ibm-footer" style="border-top-color:rgba(255,255,255,0.3);color:rgba(255,255,255,0.7);">
+    <span>IBM Concert / Installation Guide / 2025 / © 2025 IBM Corporation</span>
+    <span>23</span>
+  </div>
+</div>
+
+</div><!-- /deck-stage -->
+</div><!-- /deck-viewport -->
+
+<!-- === DECK CONTROLS === -->
+<div class="deck-controls">
+  <button class="ctrl-btn" id="btn-prev">&#8592; Prev</button>
+  <span class="ctrl-counter" id="counter">1 / 23</span>
+  <button class="ctrl-btn" id="btn-next">Next &#8594;</button>
+</div>
+
+<script>
+/* === DECK ENGINE === */
+(function() {
+    const TOTAL = 23;
+    let current = 1;
+
+    function goTo(n) {
+        if (n < 1 || n > TOTAL) return;
+        const prev = document.getElementById('slide-' + current);
+        if (prev) prev.classList.remove('active');
+        current = n;
+        const next = document.getElementById('slide-' + current);
+        if (next) next.classList.add('active');
+        document.getElementById('counter').textContent = current + ' / ' + TOTAL;
+    }
+
+    /* Scale stage to fit viewport */
+    function scaleStage() {
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        const scaleX = vw / 1920;
+        const scaleY = vh / 1080;
+        const scale = Math.min(scaleX, scaleY);
+        const offsetX = (vw - 1920 * scale) / 2;
+        const offsetY = (vh - 1080 * scale) / 2;
+        document.getElementById('stage').style.transform =
+            'translate(' + offsetX + 'px,' + offsetY + 'px) scale(' + scale + ')';
+    }
+
+    window.addEventListener('resize', scaleStage);
+    scaleStage();
+    goTo(1);
+
+    document.getElementById('btn-next').addEventListener('click', function() { goTo(current + 1); });
+    document.getElementById('btn-prev').addEventListener('click', function() { goTo(current - 1); });
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); goTo(current + 1); }
+        if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')                    { e.preventDefault(); goTo(current - 1); }
+    });
+})();
+</script>
+</body>
+</html>
